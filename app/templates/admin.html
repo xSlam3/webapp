@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Хедер -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-800">👑 Админ-панель</h1>
+                    <p class="text-gray-600 mt-1">Управление пользователями системы</p>
+                </div>
+                <div class="flex gap-3">
+                    <a href="/ar/tags" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md">
+                        🎯 Управление AR тегами
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Алерты -->
+        <div id="alertContainer" class="mb-6"></div>
+
+        <!-- Статистика -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Всего пользователей</p>
+                        <p class="text-2xl font-bold text-gray-800" id="totalUsers">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Активных</p>
+                        <p class="text-2xl font-bold text-gray-800" id="activeUsers">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-red-100 text-red-600">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Неактивных</p>
+                        <p class="text-2xl font-bold text-gray-800" id="inactiveUsers">0</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-4">
+                        <p class="text-sm text-gray-600">Администраторов</p>
+                        <p class="text-2xl font-bold text-gray-800" id="adminUsers">0</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица пользователей -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-gray-800">Список пользователей</h2>
+                    <button onclick="loadUsers()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md">
+                        🔄 Обновить
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Пользователь</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Роль</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Статус</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Дата создания</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTable" class="bg-white divide-y divide-gray-200">
+                        <!-- Динамический контент -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Модальное окно для редактирования пользователя -->
+<div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg font-medium text-gray-900 mb-4" id="modalTitle">Редактировать пользователя</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Имя пользователя</label>
+                    <input type="text" id="editUsername" disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Новый пароль (оставьте пустым, чтобы не менять)</label>
+                    <input type="password" id="editPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                </div>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="editIsAdmin" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                    <label for="editIsAdmin" class="ml-2 text-sm text-gray-700">Права администратора</label>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-6">
+                <button onclick="closeEditModal()" class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
+                    Отмена
+                </button>
+                <button onclick="saveUser()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md">
+                    Сохранить
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentEditUsername = null;
+
+// Показать алерт
+function showAlert(message, type = 'success') {
+    const colors = {
+        success: 'green',
+        error: 'red',
+        info: 'blue'
+    };
+    const color = colors[type] || 'green';
+    
+    const alert = document.createElement('div');
+    alert.className = `bg-${color}-50 border-l-4 border-${color}-500 p-4 rounded-lg`;
+    alert.innerHTML = `
+        <div class="flex justify-between items-center">
+            <p class="text-sm text-${color}-700">${message}</p>
+            <button onclick="this.parentElement.parentElement.remove()" class="text-${color}-400 hover:text-${color}-600">✖</button>
+        </div>
+    `;
+    
+    document.getElementById('alertContainer').appendChild(alert);
+    setTimeout(() => alert.remove(), 5000);
+}
+
+// Загрузка пользователей
+async function loadUsers() {
+    try {
+        const resp = await fetch('/auth/users');
+        if (!resp.ok) {
+            if (resp.status === 403) {
+                showAlert('Нет прав доступа к админ-панели', 'error');
+                setTimeout(() => window.location.href = '/auth/', 2000);
+                return;
+            }
+            throw new Error('Ошибка загрузки пользователей');
+        }
+        
+        const data = await resp.json();
+        renderUsers(data.users);
+        updateStats(data.users);
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+// Отображение пользователей
+function renderUsers(users) {
+    const tbody = document.getElementById('usersTable');
+    tbody.innerHTML = '';
+    
+    users.forEach(user => {
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        
+        const statusBadge = user.is_active
+            ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Активен</span>'
+            : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Неактивен</span>';
+        
+        const roleBadge = user.is_admin
+            ? '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">👑 Админ</span>'
+            : '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Пользователь</span>';
+        
+        const date = new Date(user.created_at).toLocaleString('ru-RU');
+        
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                    <div class="text-sm font-medium text-gray-900">${user.username}</div>
+                </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">${roleBadge}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${date}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <button onclick="editUser('${user.username}')" class="text-indigo-600 hover:text-indigo-700 mr-3 font-medium">✏️ Редактировать</button>
+                <button onclick="toggleUserStatus('${user.username}')" class="text-indigo-600 hover:text-indigo-700 mr-3 font-medium">
+                    ${user.is_active ? '⏸️ Деактивировать' : '▶️ Активировать'}
+                </button>
+                <button onclick="deleteUser('${user.username}')" class="text-red-600 hover:text-red-700 font-medium">🗑️ Удалить</button>
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+}
+
+// Обновление статистики
+function updateStats(users) {
+    document.getElementById('totalUsers').textContent = users.length;
+    document.getElementById('activeUsers').textContent = users.filter(u => u.is_active).length;
+    document.getElementById('inactiveUsers').textContent = users.filter(u => !u.is_active).length;
+    document.getElementById('adminUsers').textContent = users.filter(u => u.is_admin).length;
+}
+
+// Редактирование пользователя
+async function editUser(username) {
+    try {
+        const resp = await fetch(`/auth/users/${username}`);
+        const user = await resp.json();
+        
+        currentEditUsername = username;
+        document.getElementById('editUsername').value = user.username;
+        document.getElementById('editPassword').value = '';
+        document.getElementById('editIsAdmin').checked = user.is_admin;
+        document.getElementById('editModal').classList.remove('hidden');
+    } catch (err) {
+        showAlert('Ошибка загрузки данных пользователя', 'error');
+    }
+}
+
+// Сохранение изменений
+async function saveUser() {
+    const password = document.getElementById('editPassword').value;
+    const isAdmin = document.getElementById('editIsAdmin').checked;
+    
+    const updateData = { is_admin: isAdmin };
+    if (password) {
+        updateData.password = password;
+    }
+    
+    try {
+        const resp = await fetch(`/auth/users/${currentEditUsername}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!resp.ok) throw new Error('Ошибка обновления');
+        
+        showAlert('Пользователь обновлён успешно', 'success');
+        closeEditModal();
+        loadUsers();
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+// Закрытие модального окна
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+    currentEditUsername = null;
+}
+
+// Переключение статуса
+async function toggleUserStatus(username) {
+    if (!confirm(`Изменить статус пользователя ${username}?`)) return;
+    
+    try {
+        const resp = await fetch(`/auth/users/${username}/toggle-status`, {
+            method: 'POST'
+        });
+        
+        if (!resp.ok) throw new Error('Ошибка изменения статуса');
+        
+        showAlert('Статус пользователя изменён', 'success');
+        loadUsers();
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+// Удаление пользователя
+async function deleteUser(username) {
+    if (!confirm(`Вы уверены, что хотите удалить пользователя ${username}?`)) return;
+    
+    try {
+        const resp = await fetch(`/auth/users/${username}`, {
+            method: 'DELETE'
+        });
+        
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.detail || 'Ошибка удаления');
+        }
+        
+        showAlert('Пользователь удалён', 'success');
+        loadUsers();
+    } catch (err) {
+        showAlert(err.message, 'error');
+    }
+}
+
+
+// Загрузка при открытии страницы
+loadUsers();
+</script>
+{% endblock %}

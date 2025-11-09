@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-4 sm:mt-10 p-4 sm:p-6 bg-white rounded-lg shadow-md">
+    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6 text-center">🔑 Аутентификация</h1>
+
+    <!-- Ошибки -->
+    <div id="errorAlert" class="hidden mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+        <div class="flex">
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">Ошибка</h3>
+                <div class="mt-2 text-sm text-red-700">
+                    <ul class="list-disc list-inside space-y-1" id="errorList"></ul>
+                </div>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="closeError()" class="text-red-400 hover:text-red-600">✖</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Успех -->
+    <div id="successAlert" class="hidden mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
+        <div class="flex">
+            <div class="ml-3">
+                <h3 class="text-sm font-medium text-green-800">Успех</h3>
+                <div class="mt-2 text-sm text-green-700" id="successMsg"></div>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="closeSuccess()" class="text-green-400 hover:text-green-600">✖</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Навигация между регистрацией и входом -->
+    <div class="flex justify-center mb-6 space-x-4">
+        <button id="showLogin" class="px-4 py-2 font-medium text-indigo-600 border-b-2 border-indigo-600 focus:outline-none">
+            Вход
+        </button>
+        <button id="showRegister" class="px-4 py-2 font-medium text-gray-500 hover:text-indigo-600 focus:outline-none">
+            Регистрация
+        </button>
+    </div>
+
+    <!-- Форма входа -->
+    <form id="loginForm" class="space-y-4">
+        <div>
+            <label for="loginUsername" class="block text-sm font-medium text-gray-700">Логин</label>
+            <input type="text" id="loginUsername" name="username" required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
+                placeholder="Введите логин">
+        </div>
+        <div>
+            <label for="loginPassword" class="block text-sm font-medium text-gray-700">Пароль</label>
+            <input type="password" id="loginPassword" name="password" required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
+                placeholder="Введите пароль">
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-base min-h-[44px]">
+            Войти
+        </button>
+    </form>
+
+    <!-- Форма регистрации -->
+    <form id="registerForm" class="space-y-4 hidden">
+        <div>
+            <label for="registerUsername" class="block text-sm font-medium text-gray-700">Логин</label>
+            <input type="text" id="registerUsername" name="username" required
+                minlength="3" maxlength="50"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
+                placeholder="Минимум 3 символа">
+            <p class="mt-1 text-xs text-gray-500">Только буквы, цифры, _ и -</p>
+        </div>
+        <div>
+            <label for="registerPassword" class="block text-sm font-medium text-gray-700">Пароль</label>
+            <input type="password" id="registerPassword" name="password" required
+                minlength="6" maxlength="100"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
+                placeholder="Минимум 6 символов">
+            <p class="mt-1 text-xs text-gray-500">Минимум 6 символов</p>
+        </div>
+        <button type="submit" class="w-full bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-base min-h-[44px]">
+            Зарегистрироваться
+        </button>
+    </form>
+
+    <!-- Информация о тестовых аккаунтах -->
+    <div class="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p class="text-xs text-blue-800 font-medium mb-2">🔐 Тестовые аккаунты:</p>
+        <div class="text-xs text-blue-700 space-y-1">
+            <p><strong>Пользователь:</strong> alice / 123456</p>
+            <p><strong>Администратор:</strong> bob / 123456</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const loginForm = document.getElementById("loginForm");
+const registerForm = document.getElementById("registerForm");
+const showLoginBtn = document.getElementById("showLogin");
+const showRegisterBtn = document.getElementById("showRegister");
+
+const errorAlert = document.getElementById("errorAlert");
+const errorList = document.getElementById("errorList");
+const successAlert = document.getElementById("successAlert");
+const successMsg = document.getElementById("successMsg");
+
+// Функции для алертов
+const showError = (msg) => {
+    errorList.innerHTML = "";
+    if (Array.isArray(msg)) {
+        msg.forEach(m => {
+            const li = document.createElement("li");
+            li.textContent = m;
+            errorList.appendChild(li);
+        });
+    } else {
+        const li = document.createElement("li");
+        li.textContent = msg;
+        errorList.appendChild(li);
+    }
+    errorAlert.classList.remove("hidden");
+    setTimeout(closeError, 7000);
+};
+
+const closeError = () => errorAlert.classList.add("hidden");
+
+const showSuccess = (msg) => { 
+    successMsg.textContent = msg; 
+    successAlert.classList.remove("hidden");
+    setTimeout(closeSuccess, 5000);
+};
+
+const closeSuccess = () => successAlert.classList.add("hidden");
+
+// Переключение между входом и регистрацией
+showLoginBtn.addEventListener("click", () => {
+    loginForm.classList.remove("hidden");
+    registerForm.classList.add("hidden");
+    showLoginBtn.classList.add("border-indigo-600", "text-indigo-600");
+    showRegisterBtn.classList.remove("border-indigo-600", "text-indigo-600");
+    showRegisterBtn.classList.add("text-gray-500");
+    closeError();
+    closeSuccess();
+});
+
+showRegisterBtn.addEventListener("click", () => {
+    registerForm.classList.remove("hidden");
+    loginForm.classList.add("hidden");
+    showRegisterBtn.classList.add("border-indigo-600", "text-indigo-600");
+    showLoginBtn.classList.remove("border-indigo-600", "text-indigo-600");
+    showLoginBtn.classList.add("text-gray-500");
+    closeError();
+    closeSuccess();
+});
+
+// Блокировка кнопки при отправке
+function setFormLoading(form, loading) {
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = loading;
+    if (loading) {
+        btn.textContent = "Загрузка...";
+    } else {
+        btn.textContent = form.id === "loginForm" ? "Войти" : "Зарегистрироваться";
+    }
+}
+
+// Регистрация
+registerForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    closeError();
+    closeSuccess();
+    setFormLoading(registerForm, true);
+
+    const formData = new FormData(registerForm);
+    
+    try {
+        const resp = await fetch("/auth/register", { 
+            method: "POST", 
+            body: formData 
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok) {
+            showSuccess(data.message || "Регистрация успешна! Теперь войдите в систему.");
+            registerForm.reset();
+            setTimeout(() => showLoginBtn.click(), 2000);
+        } else {
+            showError(data.detail || "Ошибка регистрации");
+        }
+    } catch (err) {
+        showError("Ошибка соединения с сервером");
+    } finally {
+        setFormLoading(registerForm, false);
+    }
+});
+
+// Вход
+loginForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    closeError();
+    closeSuccess();
+    setFormLoading(loginForm, true);
+
+    const formData = new FormData(loginForm);
+    
+    try {
+        const resp = await fetch("/auth/login", { 
+            method: "POST", 
+            body: formData 
+        });
+
+        const data = await resp.json();
+
+        if (resp.ok) {
+            showSuccess(data.message || "Вход выполнен успешно!");
+            
+            // Редирект в зависимости от роли
+            setTimeout(() => {
+                if (data.is_admin) {
+                    window.location.href = "/auth/admin";
+                } else {
+                    window.location.href = "/knowledge_base/";
+                }
+            }, 1000);
+        } else {
+            showError(data.detail || "Ошибка входа");
+        }
+    } catch (err) {
+        showError("Ошибка соединения с сервером");
+    } finally {
+        setFormLoading(loginForm, false);
+    }
+});
+
+// Автофокус на первое поле
+document.getElementById("loginUsername").focus();
+</script>
+{% endblock %}

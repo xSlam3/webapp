@@ -1,0 +1,930 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <!-- Хедер -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">📱 AR Сканер</h1>
+            <p class="text-gray-600 mt-1">Наведите камеру на QR код или изображение тега для просмотра учебного материала</p>
+            <p class="text-xs text-gray-500 mt-2">💡 Поддерживается распознавание QR кодов и изображений (упаковки товаров, маркеры и т.д.)</p>
+        </div>
+
+        <!-- Контейнер для AR -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div id="arContainer" style="position: relative; width: 100%; height: 70vh; background: #000; overflow: hidden;">
+                <!-- Видео поток с камеры (для QR и упрощенного распознавания) -->
+                <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                
+                <!-- Canvas для QR распознавания -->
+                <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+                
+                <!-- MindAR будет создавать свой canvas здесь (если загрузится) -->
+                
+                <!-- Контейнер для отображения материала -->
+                <div id="materialOverlay" class="hidden absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10">
+                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <button onclick="closeMaterialOverlay()" class="float-right text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                            <div id="materialContent" class="mt-4">
+                                <!-- Контент материала будет загружен здесь -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Индикатор загрузки -->
+                <div id="loadingIndicator" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+                    <div class="text-white text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                        <p>Инициализация камеры...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Инструкции -->
+            <div class="p-6 bg-gray-50 border-t border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-2">📋 Инструкции:</h3>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• Разрешите доступ к камере при запросе</li>
+                    <li>• Наведите камеру на QR код или изображение тега (упаковка товара, маркер)</li>
+                    <li>• Убедитесь, что изображение четкое, хорошо освещено и видно полностью</li>
+                    <li>• Держите камеру стабильно, избегайте дрожания</li>
+                    <li>• Учебный материал отобразится автоматически при распознавании</li>
+                    <li>• Откройте консоль браузера (F12) для просмотра процесса распознавания</li>
+                </ul>
+                <div id="recognitionStatus" class="mt-3 text-xs text-gray-500 hidden">
+                    <span id="statusText">Ожидание распознавания...</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- AR.js и зависимости -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ar-js-org/ar.js@3.4.2/build/ar.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<!-- MindAR отключен - используем упрощенный метод распознавания изображений -->
+<!-- MindAR требует ES6 модули, что несовместимо с текущей архитектурой -->
+<!-- Упрощенный метод работает через сравнение пикселей на canvas -->
+<script>
+console.log('ℹ️ Используется упрощенный метод распознавания изображений (без MindAR)');
+</script>
+
+<script>
+let video, canvas, ctx;
+let detectedTagId = null;
+let materialData = null;
+let currentStream = null; // Храним ссылку на поток для очистки
+let mindARController = null; // Контроллер MindAR
+let arReady = false; // Флаг готовности AR
+let tagImages = new Map(); // Кеш загруженных изображений тегов
+let tagTargets = new Map(); // Кеш целевых изображений для MindAR
+let simpleImageDetectionActive = false; // Флаг упрощенного распознавания
+let allTags = []; // Сохраняем теги для упрощенного метода
+
+// Получить getUserMedia с поддержкой старых браузеров и мобильных устройств
+function getUserMedia(constraints) {
+    // Современный API (предпочтительно)
+    if (typeof navigator !== 'undefined' && 
+        navigator.mediaDevices && 
+        typeof navigator.mediaDevices.getUserMedia === 'function') {
+        return navigator.mediaDevices.getUserMedia(constraints);
+    }
+    
+    // Старый API (для совместимости)
+    const getUserMediaLegacy = (typeof navigator !== 'undefined' && 
+                                (navigator.getUserMedia || 
+                                 navigator.webkitGetUserMedia || 
+                                 navigator.mozGetUserMedia || 
+                                 navigator.msGetUserMedia));
+    
+    if (getUserMediaLegacy) {
+        return new Promise((resolve, reject) => {
+            const legacyFunc = navigator.getUserMedia || 
+                              navigator.webkitGetUserMedia || 
+                              navigator.mozGetUserMedia || 
+                              navigator.msGetUserMedia;
+            legacyFunc.call(navigator, constraints, resolve, reject);
+        });
+    }
+    
+    // Если ничего не найдено, пробуем еще раз через небольшую задержку
+    // (на некоторых мобильных устройствах API может загружаться асинхронно)
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(resolve)
+                    .catch(reject);
+            } else {
+                reject(new Error('getUserMedia не поддерживается в этом браузере'));
+            }
+        }, 100);
+    });
+}
+
+// Функция для остановки потока камеры
+function stopCameraStream() {
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Остановлен трек камеры:', track.kind);
+        });
+        currentStream = null;
+    }
+    if (video && video.srcObject) {
+        video.srcObject = null;
+    }
+}
+
+// Функция checkCameraSupport больше не используется - сразу пробуем запросить доступ
+
+// Инициализация
+async function init() {
+    // Останавливаем предыдущий поток, если он есть
+    stopCameraStream();
+    
+    // Получаем элементы видео и canvas
+    video = document.getElementById('video');
+    canvas = document.getElementById('canvas');
+    
+    if (!video) {
+        console.error('❌ Элемент video не найден');
+        return;
+    }
+    
+    if (!canvas) {
+        console.error('❌ Элемент canvas не найден');
+        return;
+    }
+    
+    // Оптимизация для частого чтения данных из canvas
+    ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // Проверка HTTPS (кроме localhost)
+    const isLocalhost = location.hostname === 'localhost' || 
+                        location.hostname === '127.0.0.1' || 
+                        location.hostname === '[::1]';
+    const isSecure = location.protocol === 'https:' || isLocalhost;
+    
+    if (!isSecure) {
+        showError('Для доступа к камере требуется HTTPS соединение. Пожалуйста, используйте HTTPS или откройте приложение через localhost.');
+        return;
+    }
+    
+    // Логируем информацию для отладки
+    console.log('Инициализация AR сканера:', {
+        mediaDevices: !!navigator.mediaDevices,
+        getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+        legacyGetUserMedia: !!(navigator.getUserMedia || navigator.webkitGetUserMedia),
+        protocol: location.protocol,
+        hostname: location.hostname,
+        isSecure: isSecure,
+        userAgent: navigator.userAgent
+    });
+    
+    // Не делаем предварительную проверку - сразу пробуем запросить доступ к камере
+    // Это более надежно, особенно на мобильных устройствах
+    try {
+        // Пробуем запросить доступ к камере с минимальными ограничениями
+        // На мобильных устройствах лучше сначала попробовать простой запрос
+        let stream = null;
+        let lastError = null;
+        
+        // Вариант 1: Простой запрос без ограничений (самый надежный)
+        try {
+            console.log('Пробуем простой запрос к камере...');
+            stream = await getUserMedia({ video: true });
+            console.log('Успешно получен доступ к камере (простой запрос)');
+        } catch (simpleError) {
+            console.log('Простой запрос не сработал, пробуем с параметрами:', simpleError);
+            lastError = simpleError;
+            
+            // Вариант 2: С задней камерой (для мобильных)
+            try {
+                stream = await getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment'
+                    } 
+                });
+                console.log('Успешно получен доступ к камере (задняя камера)');
+            } catch (envError) {
+                console.log('Задняя камера недоступна, пробуем любую камеру с параметрами:', envError);
+                lastError = envError;
+                
+                // Вариант 3: С параметрами качества
+                try {
+                    stream = await getUserMedia({ 
+                        video: { 
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        } 
+                    });
+                    console.log('Успешно получен доступ к камере (с параметрами качества)');
+                } catch (qualityError) {
+                    console.error('Все варианты запроса не сработали');
+                    lastError = qualityError;
+                    throw qualityError;
+                }
+            }
+        }
+        
+        // Сохраняем ссылку на поток для последующей очистки
+        currentStream = stream;
+        
+        // Обработка остановки треков (например, пользователь закрыл камеру в другом приложении)
+        stream.getTracks().forEach(track => {
+            track.onended = () => {
+                console.log('Трек камеры остановлен:', track.kind);
+                showError('Камера была остановлена. Пожалуйста, обновите страницу и разрешите доступ снова.');
+            };
+        });
+        
+        video.srcObject = stream;
+        
+        // Обработка успешной загрузки видео
+        video.addEventListener('loadedmetadata', () => {
+            console.log(`📹 Видео загружено: ${video.videoWidth}x${video.videoHeight}`);
+            // Для QR кодов используем canvas
+            if (canvas && ctx) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                console.log(`🎨 Canvas установлен: ${canvas.width}x${canvas.height}`);
+            }
+            hideLoading();
+            startDetection();
+        }, { once: true });
+        
+        // Обработка ошибок воспроизведения
+        video.addEventListener('error', (e) => {
+            console.error('Ошибка воспроизведения видео:', e);
+            stopCameraStream();
+            showError('Ошибка при запуске камеры. Попробуйте обновить страницу.');
+        });
+        
+        // Запускаем воспроизведение
+        try {
+            await video.play();
+        } catch (playError) {
+            console.error('Ошибка воспроизведения:', playError);
+            stopCameraStream();
+            showError('Не удалось запустить видео. Убедитесь, что камера не используется другим приложением.');
+        }
+        
+    } catch (err) {
+        console.error('Ошибка доступа к камере:', err);
+        console.error('Детали ошибки:', {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+        });
+        
+        // Останавливаем поток в случае ошибки
+        stopCameraStream();
+        
+        let errorMessage = 'Не удалось получить доступ к камере. ';
+        
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            errorMessage += 'Разрешение было отклонено. Пожалуйста, разрешите доступ к камере в настройках браузера и обновите страницу.';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            errorMessage += 'Камера не найдена. Убедитесь, что камера подключена и не используется другим приложением.';
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            errorMessage += 'Камера уже используется другим приложением. Закройте другие приложения, использующие камеру.';
+        } else if (err.name === 'OverconstrainedError' || err.name === 'ConstraintNotSatisfiedError') {
+            errorMessage += 'Запрошенные настройки камеры не поддерживаются.';
+        } else if (err.message && err.message.includes('getUserMedia не поддерживается')) {
+            errorMessage = 'Ваш браузер не поддерживает доступ к камере. Используйте современный браузер (Chrome, Firefox, Safari, Edge).';
+        } else {
+            errorMessage += `Ошибка: ${err.message || err.name || 'Неизвестная ошибка'}. Убедитесь, что вы разрешили доступ к камере.`;
+        }
+        
+        showError(errorMessage);
+    }
+}
+
+// Скрыть индикатор загрузки
+function hideLoading() {
+    document.getElementById('loadingIndicator').classList.add('hidden');
+}
+
+// Показать ошибку
+function showError(message) {
+    const loadingDiv = document.getElementById('loadingIndicator');
+    loadingDiv.classList.remove('hidden');
+    loadingDiv.innerHTML = `
+        <div class="text-white text-center max-w-md mx-auto p-6">
+            <div class="mb-4">
+                <svg class="mx-auto h-12 w-12 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <p class="text-red-300 mb-4 text-sm leading-relaxed">⚠️ ${message}</p>
+            <div class="space-y-2">
+                <button onclick="requestCameraAgain()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md w-full">
+                    Попробовать снова
+                </button>
+                <button onclick="location.reload()" class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-medium w-full">
+                    Перезагрузить страницу
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Повторный запрос доступа к камере
+async function requestCameraAgain() {
+    // Останавливаем предыдущий поток перед повторным запросом
+    stopCameraStream();
+    
+    const loadingDiv = document.getElementById('loadingIndicator');
+    loadingDiv.innerHTML = `
+        <div class="text-white text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p>Запрос доступа к камере...</p>
+        </div>
+    `;
+    
+    // Небольшая задержка перед повторным запросом
+    setTimeout(() => {
+        init();
+    }, 500);
+}
+
+// Загрузка списка тегов
+async function loadTags() {
+    try {
+        const resp = await fetch('/ar/api/tags');
+        const data = await resp.json();
+        return data.tags || [];
+    } catch (err) {
+        console.error('Ошибка загрузки тегов:', err);
+        return [];
+    }
+}
+
+// Загрузка изображения тега
+async function loadTagImage(url) {
+    if (tagImages.has(url)) {
+        return tagImages.get(url);
+    }
+    
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        // Пробуем разные варианты CORS
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            tagImages.set(url, img);
+            console.log(`Изображение загружено: ${url} (${img.width}x${img.height})`);
+            resolve(img);
+        };
+        img.onerror = (e) => {
+            console.error(`Ошибка загрузки изображения ${url}:`, e);
+            // Пробуем без CORS
+            const img2 = new Image();
+            img2.onload = () => {
+                tagImages.set(url, img2);
+                console.log(`Изображение загружено без CORS: ${url}`);
+                resolve(img2);
+            };
+            img2.onerror = reject;
+            img2.src = url;
+        };
+        img.src = url;
+    });
+}
+
+// MindAR отключен - используем только упрощенный метод
+function initMindAR() {
+    // MindAR не используется, сразу помечаем как не готов
+    // Упрощенный метод будет использован автоматически
+    console.log('ℹ️ MindAR отключен, используется упрощенный метод распознавания');
+    arReady = false;
+}
+
+// Подготовка изображения тега для MindAR
+async function prepareTagForMindAR(tagId, tagImageUrl) {
+    if (tagTargets.has(tagId)) {
+        return tagTargets.get(tagId);
+    }
+    
+    if (!arReady || typeof MINDAR === 'undefined') {
+        console.warn(`⚠️ MindAR не готов для подготовки тега ${tagId}`);
+        return null;
+    }
+    
+    try {
+        const img = await loadTagImage(tagImageUrl);
+        
+        // MindAR использует URL изображения напрямую
+        tagTargets.set(tagId, {
+            imageUrl: tagImageUrl,
+            image: img,
+            imageSize: { width: img.width, height: img.height }
+        });
+        
+        console.log(`✅ Изображение подготовлено для тега ${tagId} (MindAR)`);
+        return tagTargets.get(tagId);
+    } catch (e) {
+        console.error(`❌ Ошибка подготовки изображения для тега ${tagId}:`, e);
+        return null;
+    }
+}
+
+// Инициализация MindAR контроллера
+async function initMindARController(tags) {
+    if (!arReady || typeof MINDAR === 'undefined' || typeof MINDAR.IMAGE === 'undefined') {
+        console.warn('⚠️ MindAR не готов для инициализации контроллера');
+        return null;
+    }
+    
+    if (tags.length === 0) {
+        console.warn('⚠️ Нет тегов для инициализации MindAR');
+        return null;
+    }
+    
+    try {
+        // Подготавливаем изображения для MindAR
+        const imageTargets = [];
+        const tagIdMap = new Map(); // Маппинг индекса в MindAR к tagId
+        
+        for (let i = 0; i < tags.length; i++) {
+            const tag = tags[i];
+            const prepared = await prepareTagForMindAR(tag.id, tag.tag_image_url);
+            if (prepared) {
+                imageTargets.push({
+                    file: tag.tag_image_url,
+                    type: 'image'
+                });
+                tagIdMap.set(i, tag.id);
+                console.log(`✅ Изображение ${i} добавлено в MindAR: тег ${tag.id} (${tag.name})`);
+            }
+        }
+        
+        if (imageTargets.length === 0) {
+            console.warn('⚠️ Не удалось подготовить ни одного изображения для MindAR');
+            return null;
+        }
+        
+        // Создаем контроллер MindAR
+        // MindAR.IMAGE.MindARThree требует массив URL изображений
+        const imageUrls = imageTargets.map(t => t.file);
+        
+        const mindarImage = new MINDAR.IMAGE.MindARThree({
+            container: document.getElementById('arContainer'),
+            imageTargetSrc: imageUrls,
+            maxTrack: imageTargets.length
+        });
+        
+        const { renderer, scene, camera } = mindarImage;
+        
+        // Сохраняем маппинг для использования в событиях
+        mindarImage._tagIdMap = tagIdMap;
+        mindarImage._tags = tags;
+        
+        // Обработка обнаружения изображений
+        mindarImage.onTargetFound = (targetIndex) => {
+            const tagId = mindarImage._tagIdMap.get(targetIndex);
+            if (tagId && tagId !== detectedTagId) {
+                console.log(`✅ Изображение распознано через MindAR! Тег ID: ${tagId}, индекс: ${targetIndex}`);
+                const tag = mindarImage._tags.find(t => t.id === tagId);
+                updateRecognitionStatus(`Распознано: ${tag ? tag.name : 'Тег ' + tagId}`, 'success');
+                detectedTagId = tagId;
+                handleTagDetected(tagId);
+            }
+        };
+        
+        mindarImage.onTargetLost = (targetIndex) => {
+            console.log(`🔄 Изображение потеряно: индекс ${targetIndex}`);
+            // Можно сбросить detectedTagId при потере цели
+            // Но лучше оставить, чтобы материал оставался открытым
+        };
+        
+        // Запускаем MindAR
+        await mindarImage.start();
+        console.log('✅ MindAR контроллер запущен и работает');
+        
+        return mindarImage;
+    } catch (e) {
+        console.error('❌ Ошибка инициализации MindAR контроллера:', e);
+        console.error('Детали:', e.stack);
+        return null;
+    }
+}
+
+// Начало детекции QR кодов и изображений
+async function startDetection() {
+    const tags = await loadTags();
+    
+    console.log('📋 Загружено тегов для распознавания:', tags.length);
+    if (tags.length === 0) {
+        console.warn('⚠️ Нет тегов для распознавания. Убедитесь, что вы создали AR теги в админ-панели.');
+        updateRecognitionStatus('Нет тегов для распознавания. Создайте теги в админ-панели.', 'info');
+    } else {
+        tags.forEach(tag => {
+            console.log(`  - Тег ID ${tag.id}: ${tag.name} (${tag.tag_image_url})`);
+        });
+    }
+    
+    // Инициализация распознавания изображений (используем упрощенный метод)
+    if (tags.length > 0) {
+        console.log(`Инициализация распознавания для ${tags.length} тегов...`);
+        // Всегда используем упрощенный метод (MindAR отключен)
+        initSimpleImageRecognition(tags);
+    } else {
+        console.warn('⚠️ Нет тегов для распознавания');
+    }
+    
+    let lastDetectionTime = 0;
+    const detectionInterval = 300; // Проверяем каждые 300мс для изображений
+    const qrDetectionInterval = 500; // QR коды проверяем реже
+    let lastQRDetectionTime = 0;
+    let lastImageDetectionTime = 0;
+    
+    let detectionMode = 'both'; // 'qr', 'image', 'both'
+    let currentFrameMat = null;
+    
+    // Обновление canvas с текущим кадром видео
+    function updateCanvas() {
+        if (video && video.readyState === video.HAVE_ENOUGH_DATA && canvas && ctx) {
+            try {
+                // Убеждаемся, что размеры canvas соответствуют видео
+                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                return true;
+            } catch (e) {
+                console.error('Ошибка обновления canvas:', e);
+                return false;
+            }
+        }
+        return false;
+    }
+    
+    // Используем jsQR для детекции QR кодов
+    function detectQR() {
+        const now = Date.now();
+        if (now - lastQRDetectionTime < qrDetectionInterval) {
+            requestAnimationFrame(detectQR);
+            return;
+        }
+        lastQRDetectionTime = now;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA && (detectionMode === 'qr' || detectionMode === 'both')) {
+            // Обновляем canvas перед распознаванием
+            if (!updateCanvas()) {
+                requestAnimationFrame(detectQR);
+                return;
+            }
+            
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Пробуем распознать QR код
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+                
+                if (code) {
+                    console.log('🔍 QR код обнаружен:', code.data);
+                    
+                    // Проверяем, является ли это нашим тегом
+                    let tagId = null;
+                    const data = code.data.trim();
+                    
+                    // Пытаемся извлечь ID из разных форматов
+                    if (!isNaN(data) && data !== '') {
+                        tagId = parseInt(data);
+                        console.log('✅ Распознан ID из числа:', tagId);
+                    } else if (data.includes('tag_id=') || data.includes('tag=')) {
+                        const match = data.match(/[?&](?:tag_id|tag)=(\d+)/);
+                        if (match) {
+                            tagId = parseInt(match[1]);
+                            console.log('✅ Распознан ID из URL параметра:', tagId);
+                        }
+                    } else if (data.includes('/ar/tag/')) {
+                        const match = data.match(/\/ar\/tag\/(\d+)/);
+                        if (match) {
+                            tagId = parseInt(match[1]);
+                            console.log('✅ Распознан ID из пути URL:', tagId);
+                        }
+                    }
+                    
+                    // Проверяем, что этот тег существует в нашем списке
+                    if (tagId && !isNaN(tagId)) {
+                        const tagExists = tags.some(t => t.id === tagId);
+                        if (tagExists && tagId !== detectedTagId) {
+                            console.log('🎯 Тег найден через QR и обрабатывается:', tagId);
+                            updateRecognitionStatus(`QR код распознан: ID ${tagId}`, 'success');
+                            detectedTagId = tagId;
+                            handleTagDetected(tagId);
+                        } else if (!tagExists) {
+                            console.warn('⚠️ QR код содержит ID, которого нет в списке тегов:', tagId);
+                            updateRecognitionStatus(`QR код найден, но тег ${tagId} не существует`, 'info');
+                        }
+                    } else {
+                        console.log('ℹ️ QR код не содержит распознаваемый ID тега:', data);
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка при распознавании QR кода:', e);
+            }
+        }
+        requestAnimationFrame(detectQR);
+    }
+    
+    // Упрощенное распознавание изображений (fallback если MindAR не работает)
+    function initSimpleImageRecognition(tagsList) {
+        if (simpleImageDetectionActive) return;
+        simpleImageDetectionActive = true;
+        allTags = tagsList; // Сохраняем теги
+        console.log('🔄 Инициализация упрощенного метода распознавания изображений...');
+        
+        // Предзагружаем изображения тегов
+        tagsList.forEach(async (tag) => {
+            try {
+                await loadTagImage(tag.tag_image_url);
+                console.log(`✅ Изображение тега ${tag.id} загружено для упрощенного распознавания`);
+            } catch (e) {
+                console.error(`Ошибка загрузки изображения тега ${tag.id}:`, e);
+            }
+        });
+        
+        console.log('✅ Упрощенный метод распознавания готов');
+    }
+    
+    // Распознавание изображений через упрощенный метод (сравнение через canvas)
+    async function detectImageSimple() {
+        if (!simpleImageDetectionActive || detectedTagId !== null || allTags.length === 0) {
+            return;
+        }
+        
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+            return;
+        }
+        
+        try {
+            // Обновляем canvas
+            if (!updateCanvas()) {
+                return;
+            }
+            
+            // Сравниваем текущий кадр с каждым тегом
+            for (const tag of allTags) {
+                const tagImg = tagImages.get(tag.tag_image_url);
+                if (!tagImg) continue;
+                
+                // Создаем временный canvas для сравнения
+                const compareCanvas = document.createElement('canvas');
+                const compareCtx = compareCanvas.getContext('2d');
+                
+                // Масштабируем изображение тега до размера кадра для сравнения
+                const scale = Math.min(canvas.width / tagImg.width, canvas.height / tagImg.height);
+                compareCanvas.width = tagImg.width * scale;
+                compareCanvas.height = tagImg.height * scale;
+                compareCtx.drawImage(tagImg, 0, 0, compareCanvas.width, compareCanvas.height);
+                
+                // Получаем данные изображений
+                const frameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const tagData = compareCtx.getImageData(0, 0, compareCanvas.width, compareCanvas.height);
+                
+                // Упрощенное сравнение (сравниваем центральную область)
+                const centerX = Math.floor(canvas.width / 2);
+                const centerY = Math.floor(canvas.height / 2);
+                const compareSize = Math.min(compareCanvas.width, compareCanvas.height, 200);
+                const startX = centerX - compareSize / 2;
+                const startY = centerY - compareSize / 2;
+                
+                let matches = 0;
+                let total = 0;
+                const threshold = 30; // Порог различия пикселей
+                
+                for (let y = 0; y < compareSize && startY + y < canvas.height; y++) {
+                    for (let x = 0; x < compareSize && startX + x < canvas.width; x++) {
+                        const frameIdx = ((startY + y) * canvas.width + (startX + x)) * 4;
+                        const tagIdx = (y * compareCanvas.width + x) * 4;
+                        
+                        if (frameIdx < frameData.data.length && tagIdx < tagData.data.length) {
+                            const frameR = frameData.data[frameIdx];
+                            const frameG = frameData.data[frameIdx + 1];
+                            const frameB = frameData.data[frameIdx + 2];
+                            
+                            const tagR = tagData.data[tagIdx];
+                            const tagG = tagData.data[tagIdx + 1];
+                            const tagB = tagData.data[tagIdx + 2];
+                            
+                            const diff = Math.abs(frameR - tagR) + Math.abs(frameG - tagG) + Math.abs(frameB - tagB);
+                            
+                            if (diff < threshold) {
+                                matches++;
+                            }
+                            total++;
+                        }
+                    }
+                }
+                
+                const confidence = total > 0 ? (matches / total) * 100 : 0;
+                
+                if (confidence > 60 && tag.id !== detectedTagId) {
+                    console.log(`✅ Изображение распознано! Тег ID: ${tag.id} (${tag.name}), уверенность: ${confidence.toFixed(2)}%`);
+                    updateRecognitionStatus(`Распознано: ${tag.name} (${confidence.toFixed(1)}%)`, 'success');
+                    detectedTagId = tag.id;
+                    handleTagDetected(tag.id);
+                    break;
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка упрощенного распознавания:', e);
+        }
+    }
+    
+    // Распознавание изображений через MindAR
+    // MindAR работает автоматически через события onTargetFound
+    function detectImage() {
+        if (mindARController) {
+            // MindAR обрабатывает распознавание автоматически через события
+            // Просто обновляем статус
+            if (detectedTagId === null) {
+                updateRecognitionStatus('Сканирование...', 'scanning');
+            }
+        } else if (simpleImageDetectionActive) {
+            // Используем упрощенный метод
+            detectImageSimple();
+        }
+    }
+    
+    // Запускаем детекторы
+    console.log('🚀 Запуск детекторов...');
+    console.log(`- QR детектор: активен`);
+    const imageDetectorStatus = mindARController ? 'активен (MindAR)' : 
+                                (simpleImageDetectionActive ? 'активен (упрощенный метод)' : 
+                                (arReady ? 'инициализация MindAR...' : 'ожидание MindAR'));
+    console.log(`- Image детектор: ${imageDetectorStatus}`);
+    
+    detectQR();
+    
+    // Запускаем детектор изображений
+    if (mindARController || simpleImageDetectionActive) {
+        // Для упрощенного метода проверяем чаще
+        const interval = simpleImageDetectionActive ? 500 : 1000;
+        setInterval(() => {
+            if (detectedTagId === null) {
+                detectImage();
+            }
+        }, interval);
+    }
+}
+
+// Обработка обнаруженного тега
+async function handleTagDetected(tagId) {
+    console.log('Обработка обнаруженного тега:', tagId);
+    try {
+        const resp = await fetch(`/ar/api/tag/${tagId}/material`);
+        if (!resp.ok) {
+            const errorText = await resp.text();
+            console.error('Ошибка ответа сервера:', resp.status, errorText);
+            throw new Error(`Материал не найден (статус: ${resp.status})`);
+        }
+        
+        const data = await resp.json();
+        console.log('Материал загружен:', data.material);
+        materialData = data.material;
+        showMaterialOverlay(data.material);
+    } catch (err) {
+        console.error('Ошибка загрузки материала:', err);
+        alert('Ошибка при загрузке материала: ' + err.message);
+    }
+}
+
+// Показать материал
+function showMaterialOverlay(material) {
+    const overlay = document.getElementById('materialOverlay');
+    const content = document.getElementById('materialContent');
+    
+    let html = `
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">${material.title}</h2>
+    `;
+    
+    if (material.photo) {
+        html += `<img src="/static/${material.photo}" alt="${material.title}" class="w-full rounded-lg mb-4">`;
+    }
+    
+    if (material.text) {
+        html += `<div class="prose max-w-none text-gray-700 mb-4 material-content">${material.text}</div>`;
+    }
+    
+    if (material.video) {
+        html += `
+            <video controls class="w-full rounded-lg mb-4">
+                <source src="/static/${material.video}" type="video/mp4">
+                Ваш браузер не поддерживает видео.
+            </video>
+        `;
+    }
+    
+    html += `
+        <div class="mt-4 pt-4 border-t border-gray-200">
+            <a href="/knowledge_base/${material.id}" class="text-indigo-600 hover:text-indigo-800 font-medium">
+                → Открыть полный материал
+            </a>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+    overlay.classList.remove('hidden');
+}
+
+// Обновление статуса распознавания
+function updateRecognitionStatus(text, type = 'scanning') {
+    const statusDiv = document.getElementById('recognitionStatus');
+    const statusText = document.getElementById('statusText');
+    if (!statusDiv || !statusText) return;
+    
+    statusDiv.classList.remove('hidden');
+    statusText.textContent = text;
+    
+    // Удаляем старые классы
+    statusText.classList.remove('text-gray-500', 'text-green-600', 'text-blue-600');
+    
+    // Добавляем новые классы в зависимости от типа
+    if (type === 'success') {
+        statusText.classList.add('text-green-600', 'font-semibold');
+    } else if (type === 'info') {
+        statusText.classList.add('text-blue-600');
+    } else {
+        statusText.classList.add('text-gray-500');
+    }
+}
+
+// Закрыть материал
+function closeMaterialOverlay() {
+    document.getElementById('materialOverlay').classList.add('hidden');
+    // Сбрасываем через небольшую задержку, чтобы избежать повторного срабатывания
+    setTimeout(() => {
+        detectedTagId = null;
+        updateRecognitionStatus('Готов к новому распознаванию', 'scanning');
+        console.log('Готов к новому распознаванию');
+    }, 1000);
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    initMindAR(); // Инициализируем MindAR
+    init(); // Инициализируем камеру
+});
+
+// Очистка при выгрузке страницы
+window.addEventListener('beforeunload', () => {
+    stopCameraStream();
+    // Останавливаем MindAR
+    if (mindARController) {
+        try {
+            mindARController.stop();
+        } catch (e) {
+            console.error('Ошибка остановки MindAR:', e);
+        }
+    }
+});
+
+// Очистка при скрытии страницы (например, переключение вкладки)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // Можно остановить поток при скрытии страницы для экономии ресурсов
+        // Но это может вызвать проблемы при возврате, поэтому закомментировано
+        // stopCameraStream();
+    }
+});
+</script>
+
+<style>
+#arContainer {
+    min-height: 500px;
+}
+
+#materialOverlay {
+    backdrop-filter: blur(4px);
+}
+
+#materialContent {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}
+
+
