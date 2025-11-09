@@ -6,7 +6,6 @@ from typing import List, Optional, Dict
 from app.models.qr_object_db_models import QRObject
 import qrcode
 from pathlib import Path
-from app.config import settings
 import os
 
 
