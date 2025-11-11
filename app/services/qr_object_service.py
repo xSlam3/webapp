@@ -7,26 +7,35 @@ from app.models.qr_object_db_models import QRObject
 import qrcode
 from pathlib import Path
 import os
+import secrets
+import string
 
 
-def generate_qr_code(object_id: int, base_url: str = None) -> str:
+def generate_random_qr_string(length: int = 16) -> str:
     """
-    Генерирует QR код для объекта
-    
+    Генерирует случайную строку для QR кода
+
     Args:
-        object_id: ID объекта
-        base_url: Базовый URL приложения (если None, используется из настроек)
-    
+        length: Длина строки (по умолчанию 16)
+
+    Returns:
+        Случайная строка из букв и цифр
+    """
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+
+def generate_qr_code(qr_string: str, object_id: int) -> str:
+    """
+    Генерирует QR код с заданной строкой
+
+    Args:
+        qr_string: Строка для кодирования в QR код
+        object_id: ID объекта (для имени файла)
+
     Returns:
         Относительный путь к сохраненному QR коду (например, "uploads/qr_object_1.png")
     """
-    # Определяем URL для QR кода
-    if base_url is None:
-        # Пытаемся получить из настроек или используем дефолтный
-        base_url = os.getenv("BASE_URL", "http://localhost:8000")
-    
-    qr_url = f"{base_url}/qr/view/{object_id}"
-    
     # Создаем QR код
     qr = qrcode.QRCode(
         version=1,
@@ -34,21 +43,21 @@ def generate_qr_code(object_id: int, base_url: str = None) -> str:
         box_size=10,
         border=4,
     )
-    qr.add_data(qr_url)
+    qr.add_data(qr_string)
     qr.make(fit=True)
-    
+
     # Создаем изображение
     img = qr.make_image(fill_color="black", back_color="white")
-    
+
     # Сохраняем QR код
     upload_dir = Path("app/static/uploads")
     upload_dir.mkdir(parents=True, exist_ok=True)
-    
+
     qr_filename = f"qr_object_{object_id}.png"
     qr_path = upload_dir / qr_filename
-    
+
     img.save(qr_path)
-    
+
     return f"uploads/{qr_filename}"
 
 
@@ -62,33 +71,41 @@ def create_qr_object(
 ) -> QRObject:
     """
     Создание нового QR объекта
-    
+
     Args:
         name: Название объекта
         description: Описание объекта (HTML)
         photo: Путь к фото объекта
         created_by: Имя пользователя, создавшего объект
         db: Сессия базы данных
-        base_url: Базовый URL для генерации QR кода
-    
+        base_url: Базовый URL для генерации QR кода (не используется)
+
     Returns:
         QRObject: Созданный объект
     """
+    # Генерируем уникальную случайную строку для QR кода
+    qr_string = generate_random_qr_string()
+
+    # Проверяем уникальность (на всякий случай)
+    while db.query(QRObject).filter(QRObject.qr_string == qr_string).first():
+        qr_string = generate_random_qr_string()
+
     # Сначала создаем объект без QR кода, чтобы получить ID
     qr_object = QRObject(
         name=name,
         description=description,
         photo=photo,
         qr_code_path="",  # Временно пустое
+        qr_string=qr_string,
         created_by=created_by
     )
     db.add(qr_object)
     db.flush()  # Получаем ID без коммита
-    
-    # Генерируем QR код с полученным ID
-    qr_code_path = generate_qr_code(qr_object.id, base_url)
+
+    # Генерируем QR код со случайной строкой
+    qr_code_path = generate_qr_code(qr_string, qr_object.id)
     qr_object.qr_code_path = qr_code_path
-    
+
     db.commit()
     db.refresh(qr_object)
     return qr_object
@@ -97,15 +114,29 @@ def create_qr_object(
 def get_qr_object_by_id(object_id: int, db: Session) -> Optional[QRObject]:
     """
     Получение QR объекта по ID
-    
+
     Args:
         object_id: ID объекта
         db: Сессия базы данных
-    
+
     Returns:
         Optional[QRObject]: Объект или None
     """
     return db.query(QRObject).filter(QRObject.id == object_id).first()
+
+
+def get_qr_object_by_string(qr_string: str, db: Session) -> Optional[QRObject]:
+    """
+    Получение QR объекта по строке QR кода
+
+    Args:
+        qr_string: Строка из QR кода
+        db: Сессия базы данных
+
+    Returns:
+        Optional[QRObject]: Объект или None
+    """
+    return db.query(QRObject).filter(QRObject.qr_string == qr_string).first()
 
 
 def get_all_qr_objects(db: Session) -> List[QRObject]:
@@ -187,10 +218,10 @@ def delete_qr_object(object_id: int, db: Session) -> bool:
 def qr_object_to_dict(qr_object: QRObject) -> Dict:
     """
     Преобразование QR объекта в словарь
-    
+
     Args:
         qr_object: QR объект
-    
+
     Returns:
         Dict: Словарь с данными объекта
     """
@@ -200,6 +231,7 @@ def qr_object_to_dict(qr_object: QRObject) -> Dict:
         "description": qr_object.description,
         "photo": qr_object.photo,
         "qr_code_path": qr_object.qr_code_path,
+        "qr_string": qr_object.qr_string,
         "created_by": qr_object.created_by,
         "created_at": qr_object.created_at.isoformat() if qr_object.created_at else None,
         "updated_at": qr_object.updated_at.isoformat() if qr_object.updated_at else None

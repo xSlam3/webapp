@@ -6,32 +6,46 @@ from sqlalchemy import and_
 from typing import List, Optional, Dict
 from app.models.ar_tag_db_models import ARTag
 from app.models.material_db_models import Material
+from app.services.orb_service import extract_orb_features
 
 
 def create_ar_tag(
     name: str,
     description: Optional[str],
     tag_image: str,
-    material_id: int,
+    material_id: Optional[int],
     created_by: str,
     db: Session
 ) -> ARTag:
     """Создание нового AR тега"""
-    # Проверяем существование материала
-    material = db.query(Material).filter(Material.id == material_id).first()
-    if not material:
-        raise ValueError(f"Материал с ID {material_id} не найден")
-    
+    # Проверяем существование материала (если указан)
+    if material_id is not None:
+        material = db.query(Material).filter(Material.id == material_id).first()
+        if not material:
+            raise ValueError(f"Материал с ID {material_id} не найден")
+
+    # Извлекаем ORB признаки из изображения тега
+    orb_keypoints, orb_descriptors = extract_orb_features(tag_image)
+
     ar_tag = ARTag(
         name=name,
         description=description,
         tag_image=tag_image,
         material_id=material_id,
-        created_by=created_by
+        created_by=created_by,
+        orb_keypoints=orb_keypoints,
+        orb_descriptors=orb_descriptors
     )
     db.add(ar_tag)
     db.commit()
     db.refresh(ar_tag)
+
+    # Логируем результат извлечения признаков
+    if orb_keypoints and orb_descriptors:
+        print(f"AR тег '{name}' создан с ORB признаками")
+    else:
+        print(f"Предупреждение: AR тег '{name}' создан без ORB признаков")
+
     return ar_tag
 
 

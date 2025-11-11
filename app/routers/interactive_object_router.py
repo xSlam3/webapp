@@ -1,5 +1,5 @@
 """
-Роутер для работы с AR тегами
+Роутер для работы с интерактивными объектами (AR и QR)
 """
 from fastapi import APIRouter, Request, Form, UploadFile, File, HTTPException, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -8,22 +8,22 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.services.ar_tag_service import (
-    create_ar_tag,
-    get_ar_tag_by_id,
-    get_all_ar_tags,
-    update_ar_tag,
-    delete_ar_tag,
-    ar_tag_to_dict,
-    get_ar_tag_by_material_id
+from app.models.interactive_object_db_models import ObjectType
+from app.services.interactive_object_service import (
+    create_interactive_object,
+    get_interactive_object_by_id,
+    get_interactive_object_by_qr_string,
+    get_all_interactive_objects,
+    get_ar_objects_for_recognition,
+    update_interactive_object,
+    delete_interactive_object,
+    interactive_object_to_dict
 )
 from app.services.file_utils import save_file, delete_file
 from app.services.auth import get_current_user, get_current_user_optional
 from app.services.user_service import get_user_by_username
-from app.services.knowledge_base_utils import read_materials
-from app.models.material_db_models import Material
 
-router = APIRouter(prefix="/ar", tags=["ar"])
+router = APIRouter(prefix="/objects", tags=["interactive_objects"])
 templates = Jinja2Templates(directory="app/templates")
 
 
@@ -33,14 +33,14 @@ def get_current_admin_user(
 ):
     """
     Проверка прав администратора
-    
+
     Args:
         current_user: Текущий пользователь
         db: Сессия базы данных
-    
+
     Returns:
         dict: Данные пользователя-администратора
-    
+
     Raises:
         HTTPException: Если пользователь не администратор
     """
@@ -50,232 +50,240 @@ def get_current_admin_user(
     return current_user
 
 
-@router.get("/tags", include_in_schema=False)
-def list_ar_tags(
+@router.get("/manage", include_in_schema=False)
+def list_interactive_objects(
     request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Список всех AR тегов (только для админов)
-    
+    Список всех интерактивных объектов (только для админов)
+
     Args:
         request: HTTP запрос
         db: Сессия базы данных
         current_user: Текущий пользователь
-    
+
     Returns:
-        HTMLResponse: HTML страница управления AR тегами
-    
+        HTMLResponse: HTML страница управления объектами
+
     Raises:
         HTTPException: Если пользователь не администратор или не авторизован
     """
     user = get_user_by_username(db, current_user.get("username"))
     if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Только администраторы могут просматривать AR теги")
-    
-    ar_tags = get_all_ar_tags(db)
-    ar_tags_dict = [ar_tag_to_dict(tag, db, include_material=True) for tag in ar_tags]
-    
-    # Получаем все материалы для выпадающего списка
-    materials = read_materials(db)
-    
+        raise HTTPException(status_code=403, detail="Только администраторы могут просматривать объекты")
+
+    objects = get_all_interactive_objects(db)
+    objects_dict = [interactive_object_to_dict(obj) for obj in objects]
+
     user_info = {
         "username": user.username,
         "is_admin": user.is_admin
     }
-    
+
     return templates.TemplateResponse(
-        "ar_tags_manage.html",
+        "interactive_objects_manage.html",
         {
             "request": request,
-            "ar_tags": ar_tags_dict,
-            "materials": materials,
+            "objects": objects_dict,
             "current_user": user_info
         }
     )
 
 
-@router.get("/tags/create", include_in_schema=False)
-def create_ar_tag_form(
+@router.get("/create", include_in_schema=False)
+def create_object_form(
     request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Форма создания AR тега
-    
+    Форма создания интерактивного объекта
+
     Args:
         request: HTTP запрос
         db: Сессия базы данных
         current_user: Текущий пользователь
-    
+
     Returns:
         HTMLResponse: HTML страница формы создания
-    
+
     Raises:
         HTTPException: Если пользователь не администратор
     """
     user = get_user_by_username(db, current_user.get("username"))
     if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Только администраторы могут создавать AR теги")
-    
-    materials = read_materials(db)
-    
+        raise HTTPException(status_code=403, detail="Только администраторы могут создавать объекты")
+
     return templates.TemplateResponse(
-        "create_ar_tag.html",
+        "create_interactive_object.html",
         {
             "request": request,
-            "title": "Создать AR тег",
-            "materials": materials
+            "title": "Создать интерактивный объект"
         }
     )
 
 
-@router.post("/tags/create", include_in_schema=False)
-async def create_ar_tag_route(
+@router.post("/create", include_in_schema=False)
+async def create_object_route(
     request: Request,
     db: Session = Depends(get_db),
     name: str = Form(...),
     description: str = Form(None),
-    tag_image: UploadFile = File(...),
-    material_id: int = Form(...),
+    object_type: str = Form(...),
+    photo: UploadFile | None = File(None),
+    recognition_image: UploadFile | None = File(None),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Создание нового AR тега
-    
+    Создание нового интерактивного объекта
+
     Args:
         request: HTTP запрос
         db: Сессия базы данных
-        name: Название тега
-        description: Описание тега
-        tag_image: Изображение тега
-        material_id: ID связанного материала
+        name: Название объекта
+        description: Описание объекта (HTML) - статья для отображения
+        object_type: Тип объекта ('ar' или 'qr')
+        photo: Фото объекта для отображения
+        recognition_image: Изображение для распознавания (только для AR)
         current_user: Текущий пользователь
-    
+
     Returns:
-        RedirectResponse: Редирект на список тегов или JSON с ошибкой
-    
+        RedirectResponse: Редирект на список объектов или JSON с ошибкой
+
     Raises:
         HTTPException: Если пользователь не администратор или ошибка валидации
     """
     user = get_user_by_username(db, current_user.get("username"))
     if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Только администраторы могут создавать AR теги")
-    
+        raise HTTPException(status_code=403, detail="Только администраторы могут создавать объекты")
+
     # Валидация
     if not name or len(name.strip()) == 0:
         return JSONResponse(
             status_code=400,
             content={"detail": "Название не может быть пустым"}
         )
-    
-    # Проверка существования материала
-    material = db.query(Material).filter(Material.id == material_id).first()
-    if not material:
+
+    # Проверка типа объекта
+    try:
+        obj_type = ObjectType(object_type)
+    except ValueError:
         return JSONResponse(
             status_code=400,
-            content={"detail": "Материал не найден"}
+            content={"detail": "Неверный тип объекта. Доступны: 'ar', 'qr'"}
         )
-    
-    tag_image_path = None
+
+    # Проверка для AR объектов - требуется изображение для распознавания
+    if obj_type == ObjectType.AR and (not recognition_image or not recognition_image.filename):
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "AR объект требует изображение для распознавания"}
+        )
+
+    photo_path = None
+    recognition_image_path = None
+
     try:
-        # Сохранение изображения тега
-        if tag_image and tag_image.filename:
-            tag_image_path = save_file(tag_image, file_type="image")
-        
-        # Создание AR тега
-        # Для HTML контента не используем strip(), чтобы сохранить форматирование
-        ar_tag = create_ar_tag(
+        # Сохранение фото для отображения
+        if photo and photo.filename:
+            photo_path = save_file(photo, file_type="image")
+
+        # Сохранение изображения для распознавания (только для AR)
+        if recognition_image and recognition_image.filename:
+            recognition_image_path = save_file(recognition_image, file_type="image")
+
+        # Создание объекта
+        obj = create_interactive_object(
             name=name.strip(),
-            description=description if description else None,  # HTML контент сохраняем как есть
-            tag_image=tag_image_path,
-            material_id=material_id,
+            description=description if description else None,
+            object_type=obj_type,
+            photo=photo_path,
+            recognition_image=recognition_image_path,
             created_by=user.username,
             db=db
         )
-        
-        return RedirectResponse(url="/ar/tags", status_code=303)
-        
+
+        return RedirectResponse(url="/objects/manage", status_code=303)
+
     except Exception as e:
-        # Удаляем загруженный файл в случае ошибки
-        if tag_image_path:
-            delete_file(tag_image_path)
-        
+        # Удаляем загруженные файлы в случае ошибки
+        if photo_path:
+            delete_file(photo_path)
+        if recognition_image_path:
+            delete_file(recognition_image_path)
+
         return JSONResponse(
             status_code=500,
-            content={"detail": f"Ошибка при создании AR тега: {str(e)}"}
+            content={"detail": f"Ошибка при создании объекта: {str(e)}"}
         )
 
 
-@router.post("/tags/{tag_id}/delete", include_in_schema=False)
-async def delete_ar_tag_route(
-    tag_id: int,
+@router.post("/{object_id}/delete", include_in_schema=False)
+async def delete_object_route(
+    object_id: int,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Удаление AR тега
-    
+    Удаление интерактивного объекта
+
     Args:
-        tag_id: ID тега
+        object_id: ID объекта
         db: Сессия базы данных
         current_user: Текущий пользователь
-    
+
     Returns:
-        RedirectResponse: Редирект на список тегов
-    
+        RedirectResponse: Редирект на список объектов
+
     Raises:
-        HTTPException: Если пользователь не администратор или тег не найден
+        HTTPException: Если пользователь не администратор или объект не найден
     """
     user = get_user_by_username(db, current_user.get("username"))
     if not user or not user.is_admin:
-        raise HTTPException(status_code=403, detail="Только администраторы могут удалять AR теги")
-    
-    ar_tag = get_ar_tag_by_id(tag_id, db)
-    if not ar_tag:
-        raise HTTPException(status_code=404, detail="AR тег не найден")
-    
-    # Удаляем файл изображения
-    if ar_tag.tag_image:
-        delete_file(ar_tag.tag_image)
-    
-    delete_ar_tag(tag_id, db)
-    return RedirectResponse(url="/ar/tags", status_code=303)
+        raise HTTPException(status_code=403, detail="Только администраторы могут удалять объекты")
+
+    obj = get_interactive_object_by_id(object_id, db)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Объект не найден")
+
+    delete_interactive_object(object_id, db)
+
+    return RedirectResponse(url="/objects/manage", status_code=303)
 
 
 @router.get("/scanner", include_in_schema=False)
-def ar_scanner_page(
+def scanner_page(
     request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Страница AR сканера для пользователей
-    
+    Страница сканера для пользователей
+
     Args:
         request: HTTP запрос
         db: Сессия базы данных
         current_user: Текущий пользователь
-    
+
     Returns:
-        HTMLResponse: HTML страница AR сканера
-    
+        HTMLResponse: HTML страница сканера
+
     Raises:
         HTTPException: Если пользователь не авторизован
     """
     user = get_user_by_username(db, current_user.get("username"))
     if not user or not user.is_active:
         return RedirectResponse(url="/auth/", status_code=303)
-    
+
     user_info = {
         "username": user.username,
         "is_admin": user.is_admin
     }
-    
+
     return templates.TemplateResponse(
-        "ar_scanner.html",
+        "scanner.html",
         {
             "request": request,
             "current_user": user_info
@@ -283,83 +291,35 @@ def ar_scanner_page(
     )
 
 
-@router.get("/api/tag/{tag_id}/material", include_in_schema=False)
-def get_material_by_tag(
-    tag_id: int,
+@router.get("/api/ar-objects", include_in_schema=False)
+def get_ar_objects_api(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
-    API для получения материала по ID тега
-    
-    Args:
-        tag_id: ID тега
-        db: Сессия базы данных
-        current_user: Текущий пользователь
-    
-    Returns:
-        JSONResponse: JSON с данными материала и тега
-    
-    Raises:
-        HTTPException: Если тег или материал не найдены, или пользователь не авторизован
-    """
-    ar_tag = get_ar_tag_by_id(tag_id, db)
-    if not ar_tag:
-        raise HTTPException(status_code=404, detail="AR тег не найден")
-    
-    material = db.query(Material).filter(Material.id == ar_tag.material_id).first()
-    if not material:
-        raise HTTPException(status_code=404, detail="Материал не найден")
-    
-    return JSONResponse(content={
-        "material": {
-            "id": material.id,
-            "title": material.title,
-            "text": material.text,
-            "photo": material.photo,
-            "video": material.video,
-            "created_at": material.created_at.isoformat() if material.created_at else None
-        },
-        "tag": {
-            "id": ar_tag.id,
-            "name": ar_tag.name,
-            "description": ar_tag.description
-        }
-    })
-
-
-@router.get("/api/tags", include_in_schema=False)
-def get_all_tags_api(
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    API для получения всех AR тегов (для AR.js)
+    API для получения всех AR объектов для распознавания
 
     Args:
         db: Сессия базы данных
         current_user: Текущий пользователь
 
     Returns:
-        JSONResponse: JSON со списком всех AR тегов
+        JSONResponse: JSON со списком AR объектов
 
     Raises:
         HTTPException: Если пользователь не авторизован
     """
-    ar_tags = get_all_ar_tags(db)
-    tags_data = []
+    ar_objects = get_ar_objects_for_recognition(db)
+    objects_data = []
 
-    for tag in ar_tags:
-        material = db.query(Material).filter(Material.id == tag.material_id).first()
-        tags_data.append({
-            "id": tag.id,
-            "name": tag.name,
-            "tag_image_url": f"/static/{tag.tag_image}",
-            "material_id": tag.material_id,
-            "material_title": material.title if material else "Неизвестный материал"
+    for obj in ar_objects:
+        objects_data.append({
+            "id": obj.id,
+            "name": obj.name,
+            "recognition_image_url": f"/static/{obj.recognition_image}" if obj.recognition_image else None
         })
 
-    return JSONResponse(content={"tags": tags_data})
+    return JSONResponse(content={"objects": objects_data})
 
 
 @router.post("/api/match-image", include_in_schema=False)
@@ -385,7 +345,6 @@ async def match_image_with_orb(
         HTTPException: Если пользователь не авторизован или ошибка обработки
     """
     from app.services.orb_service import match_orb_features
-    from app.services.interactive_object_service import get_ar_objects_for_recognition
 
     try:
         # Читаем изображение
@@ -467,3 +426,72 @@ async def match_image_with_orb(
             }
         )
 
+
+@router.get("/api/search-qr")
+def search_by_qr_string(
+    qr_string: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """
+    API endpoint для поиска QR объекта по строке из QR кода
+
+    Args:
+        qr_string: Строка, полученная при сканировании QR кода
+        db: Сессия базы данных
+        current_user: Текущий пользователь (опционально)
+
+    Returns:
+        JSONResponse: Данные найденного объекта
+
+    Raises:
+        HTTPException: Если объект не найден
+    """
+    obj = get_interactive_object_by_qr_string(qr_string, db)
+    if not obj:
+        raise HTTPException(status_code=404, detail="QR объект не найден")
+
+    object_dict = interactive_object_to_dict(obj)
+
+    return JSONResponse(content={
+        "success": True,
+        "data": object_dict
+    })
+
+
+@router.get("/view/{object_id}", include_in_schema=False)
+def view_object(
+    object_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """
+    Просмотр объекта (публичная страница, доступна без авторизации)
+
+    Args:
+        object_id: ID объекта
+        request: HTTP запрос
+        db: Сессия базы данных
+        current_user: Текущий пользователь (опционально)
+
+    Returns:
+        HTMLResponse: HTML страница с информацией об объекте
+
+    Raises:
+        HTTPException: Если объект не найден
+    """
+    obj = get_interactive_object_by_id(object_id, db)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Объект не найден")
+
+    object_dict = interactive_object_to_dict(obj)
+
+    return templates.TemplateResponse(
+        "object_view.html",
+        {
+            "request": request,
+            "object": object_dict,
+            "current_user": current_user
+        }
+    )

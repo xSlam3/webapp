@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Карточка объекта -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+
+            <!-- Заголовок -->
+            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-3xl font-bold">{{ object.name }}</h1>
+                        <p class="mt-2 text-indigo-100">
+                            {% if object.object_type == 'ar' %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                                AR объект
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                QR объект
+                            </span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Фото -->
+            {% if object.photo %}
+            <div class="w-full">
+                <img src="/static/{{ object.photo }}" alt="{{ object.name }}" class="w-full h-auto object-cover">
+            </div>
+            {% endif %}
+
+            <!-- Содержимое -->
+            <div class="p-6">
+                {% if object.description %}
+                <div class="prose prose-lg max-w-none text-gray-700 mb-6">
+                    {{ object.description | safe }}
+                </div>
+                {% else %}
+                <p class="text-gray-500 italic">Описание отсутствует</p>
+                {% endif %}
+            </div>
+
+            <!-- QR код (если это QR объект) -->
+            {% if object.object_type == 'qr' and object.qr_code_path %}
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">QR код</h3>
+                <div class="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
+                    <div class="flex-shrink-0">
+                        <img src="/static/{{ object.qr_code_path }}" alt="QR Code" class="w-48 h-48 border-4 border-white shadow-lg rounded-lg">
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-600 mb-4">
+                            Отсканируйте этот QR код с помощью камеры вашего устройства или используйте сканер приложения
+                        </p>
+                        <a href="/static/{{ object.qr_code_path }}" download class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm">
+                            <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Скачать QR код
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Изображение для распознавания (если это AR объект) -->
+            {% if object.object_type == 'ar' and object.recognition_image %}
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Изображение для распознавания</h3>
+                <div class="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-6">
+                    <div class="flex-shrink-0">
+                        <img src="/static/{{ object.recognition_image }}" alt="Recognition Image" class="max-w-sm border-4 border-white shadow-lg rounded-lg">
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-600 mb-4">
+                            Это изображение используется для AR распознавания. Наведите камеру в сканере на это изображение (или его фотографию в реальном мире), чтобы увидеть содержимое.
+                        </p>
+                        <a href="/objects/scanner" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 shadow-sm">
+                            <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Открыть сканер
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Метаинформация -->
+            <div class="p-6 border-t border-gray-200 bg-gray-50">
+                <dl class="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
+                    {% if object.created_by %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Создан</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ object.created_by }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if object.created_at %}
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Дата создания</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ object.created_at[:10] }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+
+            <!-- Действия -->
+            <div class="p-6 border-t border-gray-200 flex justify-between items-center">
+                <a href="/objects/scanner" class="text-indigo-600 hover:text-indigo-800 font-medium">
+                    ← Вернуться к сканеру
+                </a>
+                {% if current_user and current_user.is_admin %}
+                <a href="/objects/manage" class="text-gray-600 hover:text-gray-800 font-medium">
+                    Управление объектами →
+                </a>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+</div>
+{% endblock %}

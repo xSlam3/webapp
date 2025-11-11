@@ -1,0 +1,654 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Хедер -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Сканер AR/QR</h1>
+            <p class="text-gray-600 mt-1">Наведите камеру на QR код или AR изображение для просмотра содержимого</p>
+            <p class="text-xs text-gray-500 mt-2">Поддерживается распознавание QR кодов и AR изображений через алгоритм ORB</p>
+        </div>
+
+        <!-- Контейнер для сканера -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div id="scannerContainer" style="position: relative; width: 100%; height: 70vh; background: #000; overflow: hidden;">
+                <!-- Видео поток с камеры -->
+                <video id="video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+
+                <!-- Canvas для распознавания -->
+                <canvas id="canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+
+                <!-- Визуальный индикатор стабильности кадра -->
+                <div id="stabilityIndicator" class="hidden absolute top-4 left-4 right-4 bg-white bg-opacity-90 rounded-lg p-3 shadow-lg">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-blue-600 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-medium text-gray-900">Стабилизация изображения...</p>
+                            <div class="mt-1 w-full bg-gray-200 rounded-full h-2">
+                                <div id="stabilityProgress" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Контейнер для отображения содержимого -->
+                <div id="contentOverlay" class="hidden absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10">
+                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div class="p-6">
+                            <button onclick="closeContentOverlay()" class="float-right text-gray-400 hover:text-gray-600 text-2xl">×</button>
+                            <div id="contentDisplay" class="mt-4">
+                                <!-- Контент будет загружен здесь -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Индикатор загрузки -->
+                <div id="loadingIndicator" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
+                    <div class="text-white text-center">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                        <p>Инициализация камеры...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Инструкции и статус -->
+            <div class="p-6 bg-gray-50 border-t border-gray-200">
+                <h3 class="font-semibold text-gray-800 mb-2">Инструкции:</h3>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>• Разрешите доступ к камере при запросе</li>
+                    <li>• Наведите камеру на QR код или AR изображение (упаковка, маркер)</li>
+                    <li>• Убедитесь, что изображение четкое и хорошо освещено</li>
+                    <li>• <strong>Держите камеру относительно стабильно</strong> - система автоматически распознает объект</li>
+                    <li>• Содержимое отобразится автоматически при распознавании</li>
+                </ul>
+                <div id="recognitionStatus" class="mt-3 text-sm hidden">
+                    <span id="statusText" class="text-gray-500">Готов к сканированию...</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Библиотеки -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
+<script>
+let video, canvas, ctx;
+let detectedObjectId = null;
+let detectedQRString = null;
+let currentStream = null;
+let isScanning = true;
+
+// Переменные для стабильного распознавания AR изображений
+let stableFrameCount = 0;
+let stableFrameThreshold = 1; // 1 проверка = 1 секунда
+let lastFrameData = null;
+let frameStabilityThreshold = 0.95; // 95% схожести кадров
+let lastARCheckTime = 0;
+const arCheckInterval = 1000; // Проверяем каждую секунду
+
+// Получить getUserMedia с поддержкой старых браузеров
+function getUserMedia(constraints) {
+    if (typeof navigator !== 'undefined' &&
+        navigator.mediaDevices &&
+        typeof navigator.mediaDevices.getUserMedia === 'function') {
+        return navigator.mediaDevices.getUserMedia(constraints);
+    }
+
+    const getUserMediaLegacy = (typeof navigator !== 'undefined' &&
+                                (navigator.getUserMedia ||
+                                 navigator.webkitGetUserMedia ||
+                                 navigator.mozGetUserMedia ||
+                                 navigator.msGetUserMedia));
+
+    if (getUserMediaLegacy) {
+        return new Promise((resolve, reject) => {
+            const legacyFunc = navigator.getUserMedia ||
+                              navigator.webkitGetUserMedia ||
+                              navigator.mozGetUserMedia ||
+                              navigator.msGetUserMedia;
+            legacyFunc.call(navigator, constraints, resolve, reject);
+        });
+    }
+
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(resolve)
+                    .catch(reject);
+            } else {
+                reject(new Error('getUserMedia не поддерживается в этом браузере'));
+            }
+        }, 100);
+    });
+}
+
+// Функция для остановки потока камеры
+function stopCameraStream() {
+    if (currentStream) {
+        currentStream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Остановлен трек камеры:', track.kind);
+        });
+        currentStream = null;
+    }
+    if (video && video.srcObject) {
+        video.srcObject = null;
+    }
+}
+
+// Инициализация
+async function init() {
+    stopCameraStream();
+
+    video = document.getElementById('video');
+    canvas = document.getElementById('canvas');
+
+    if (!video || !canvas) {
+        console.error('❌ Элементы не найдены');
+        return;
+    }
+
+    ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    const isLocalhost = location.hostname === 'localhost' ||
+                        location.hostname === '127.0.0.1' ||
+                        location.hostname === '[::1]';
+    const isSecure = location.protocol === 'https:' || isLocalhost;
+
+    if (!isSecure) {
+        showError('Для доступа к камере требуется HTTPS соединение');
+        return;
+    }
+
+    console.log('Инициализация сканера...');
+
+    try {
+        let stream = null;
+
+        try {
+            console.log('Запрос доступа к камере...');
+            stream = await getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+            console.log('✅ Доступ к камере получен');
+        } catch (envError) {
+            console.log('Задняя камера недоступна, используем любую камеру');
+            stream = await getUserMedia({ video: true });
+        }
+
+        currentStream = stream;
+
+        stream.getTracks().forEach(track => {
+            track.onended = () => {
+                console.log('Трек камеры остановлен:', track.kind);
+                showError('Камера была остановлена');
+            };
+        });
+
+        video.srcObject = stream;
+
+        video.addEventListener('loadedmetadata', () => {
+            console.log(`📹 Видео загружено: ${video.videoWidth}x${video.videoHeight}`);
+            if (canvas && ctx) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                console.log(`🎨 Canvas установлен: ${canvas.width}x${canvas.height}`);
+            }
+            hideLoading();
+            startDetection();
+        }, { once: true });
+
+        video.addEventListener('error', (e) => {
+            console.error('Ошибка воспроизведения видео:', e);
+            stopCameraStream();
+            showError('Ошибка при запуске камеры');
+        });
+
+        await video.play();
+
+    } catch (err) {
+        console.error('Ошибка доступа к камере:', err);
+        stopCameraStream();
+
+        let errorMessage = 'Не удалось получить доступ к камере. ';
+
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            errorMessage += 'Разрешите доступ к камере в настройках браузера';
+        } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            errorMessage += 'Камера не найдена';
+        } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            errorMessage += 'Камера уже используется другим приложением';
+        } else {
+            errorMessage += `Ошибка: ${err.message || err.name}`;
+        }
+
+        showError(errorMessage);
+    }
+}
+
+// Скрыть индикатор загрузки
+function hideLoading() {
+    document.getElementById('loadingIndicator').classList.add('hidden');
+}
+
+// Показать ошибку
+function showError(message) {
+    const loadingDiv = document.getElementById('loadingIndicator');
+    loadingDiv.classList.remove('hidden');
+    loadingDiv.innerHTML = `
+        <div class="text-white text-center max-w-md mx-auto p-6">
+            <div class="mb-4">
+                <svg class="mx-auto h-12 w-12 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <p class="text-red-300 mb-4 text-sm leading-relaxed">⚠️ ${message}</p>
+            <div class="space-y-2">
+                <button onclick="requestCameraAgain()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md w-full">
+                    Попробовать снова
+                </button>
+                <button onclick="location.reload()" class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition font-medium w-full">
+                    Перезагрузить страницу
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Повторный запрос доступа к камере
+async function requestCameraAgain() {
+    stopCameraStream();
+    const loadingDiv = document.getElementById('loadingIndicator');
+    loadingDiv.innerHTML = `
+        <div class="text-white text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p>Запрос доступа к камере...</p>
+        </div>
+    `;
+    setTimeout(() => init(), 500);
+}
+
+// Начало детекции
+function startDetection() {
+    console.log('🚀 Запуск детекторов...');
+    updateRecognitionStatus('Готов к сканированию...', 'scanning');
+
+    let lastQRDetectionTime = 0;
+    const qrDetectionInterval = 500; // QR коды проверяем каждые 500мс
+
+    // Обновление canvas с текущим кадром видео
+    function updateCanvas() {
+        if (video && video.readyState === video.HAVE_ENOUGH_DATA && canvas && ctx) {
+            try {
+                if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                }
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                return true;
+            } catch (e) {
+                console.error('Ошибка обновления canvas:', e);
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // Детекция QR кодов
+    function detectQR() {
+        if (!isScanning) {
+            requestAnimationFrame(detectQR);
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastQRDetectionTime < qrDetectionInterval) {
+            requestAnimationFrame(detectQR);
+            return;
+        }
+        lastQRDetectionTime = now;
+
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            if (!updateCanvas()) {
+                requestAnimationFrame(detectQR);
+                return;
+            }
+
+            try {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    console.log('🔍 QR код обнаружен:', code.data);
+                    const qrString = code.data.trim();
+
+                    if (qrString && qrString !== detectedQRString) {
+                        detectedQRString = qrString;
+                        handleQRCodeDetected(qrString);
+                    }
+                }
+            } catch (e) {
+                console.error('Ошибка при распознавании QR кода:', e);
+            }
+        }
+        requestAnimationFrame(detectQR);
+    }
+
+    // Проверка стабильности кадра (улучшенный алгоритм)
+    function isFrameStable(currentFrameData) {
+        if (!lastFrameData) {
+            lastFrameData = currentFrameData;
+            return false;
+        }
+
+        // Используем упрощенный алгоритм для ускорения
+        let matchingPixels = 0;
+        const totalPixels = currentFrameData.data.length / 4;
+        const threshold = 35; // Увеличен порог с 30 до 35 для большей толерантности
+        const sampleRate = 4; // Проверяем каждый 4-й пиксель для ускорения
+
+        for (let i = 0; i < currentFrameData.data.length; i += 4 * sampleRate) {
+            const rDiff = Math.abs(currentFrameData.data[i] - lastFrameData.data[i]);
+            const gDiff = Math.abs(currentFrameData.data[i + 1] - lastFrameData.data[i + 1]);
+            const bDiff = Math.abs(currentFrameData.data[i + 2] - lastFrameData.data[i + 2]);
+
+            if (rDiff < threshold && gDiff < threshold && bDiff < threshold) {
+                matchingPixels += sampleRate; // Компенсируем сэмплирование
+            }
+        }
+
+        const similarity = matchingPixels / totalPixels;
+        lastFrameData = currentFrameData;
+
+        return similarity >= frameStabilityThreshold;
+    }
+
+    // AR распознавание через ORB
+    async function recognizeImageWithORB() {
+        try {
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    console.error('Не удалось получить blob из canvas');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('image', blob, 'frame.jpg');
+
+                updateRecognitionStatus('Распознавание AR изображения...', 'scanning');
+
+                const response = await fetch('/scanner/api/match-image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    console.error('Ошибка ответа сервера:', response.status);
+                    updateRecognitionStatus('Ошибка распознавания', 'error');
+                    stableFrameCount = 0;
+                    hideStabilityIndicator();
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result.matched) {
+                    console.log(`✅ AR объект распознан! ${result.object_name}, уверенность: ${result.confidence}%`);
+                    updateRecognitionStatus(`Распознано: ${result.object_name} (${result.confidence}%)`, 'success');
+                    hideStabilityIndicator();
+
+                    if (result.content) {
+                        detectedObjectId = result.object_id;
+                        isScanning = false;
+                        showContentOverlay(result.content);
+                    }
+                } else {
+                    console.log('AR изображение не распознано');
+                    updateRecognitionStatus('Поиск AR объекта...', 'scanning');
+                    stableFrameCount = 0;
+                    hideStabilityIndicator();
+                }
+            }, 'image/jpeg', 0.85); // Немного снизили качество для ускорения
+
+        } catch (error) {
+            console.error('Ошибка AR распознавания:', error);
+            updateRecognitionStatus('Ошибка распознавания', 'error');
+            stableFrameCount = 0;
+            hideStabilityIndicator();
+        }
+    }
+
+    // Детекция AR изображений
+    async function detectAR() {
+        if (!isScanning || detectedObjectId !== null) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - lastARCheckTime < arCheckInterval) {
+            return;
+        }
+
+        if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+            return;
+        }
+
+        try {
+            if (!updateCanvas()) {
+                return;
+            }
+
+            const frameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            if (isFrameStable(frameData)) {
+                stableFrameCount++;
+                showStabilityIndicator(stableFrameCount, stableFrameThreshold);
+                console.log(`Стабильный кадр ${stableFrameCount}/${stableFrameThreshold}`);
+
+                if (stableFrameCount >= stableFrameThreshold) {
+                    console.log('Кадр стабилен, отправка на распознавание через ORB...');
+                    lastARCheckTime = now;
+                    stableFrameCount = 0;
+                    await recognizeImageWithORB();
+                }
+            } else {
+                if (stableFrameCount > 0) {
+                    console.log('Кадр изменился, сброс счетчика');
+                    stableFrameCount = 0;
+                    hideStabilityIndicator();
+                }
+            }
+        } catch (e) {
+            console.error('Ошибка AR распознавания:', e);
+            stableFrameCount = 0;
+            hideStabilityIndicator();
+        }
+    }
+
+    // Запускаем детекторы
+    detectQR();
+
+    // AR детектор проверяем с интервалом
+    setInterval(() => {
+        if (isScanning) {
+            detectAR();
+        }
+    }, 200); // Проверяем каждые 200мс для плавности
+}
+
+// Показать индикатор стабильности
+function showStabilityIndicator(current, total) {
+    const indicator = document.getElementById('stabilityIndicator');
+    const progress = document.getElementById('stabilityProgress');
+    const percentage = (current / total) * 100;
+
+    indicator.classList.remove('hidden');
+    progress.style.width = percentage + '%';
+}
+
+// Скрыть индикатор стабильности
+function hideStabilityIndicator() {
+    const indicator = document.getElementById('stabilityIndicator');
+    const progress = document.getElementById('stabilityProgress');
+
+    indicator.classList.add('hidden');
+    progress.style.width = '0%';
+}
+
+// Обработка обнаруженного QR кода
+async function handleQRCodeDetected(qrString) {
+    console.log('🔍 Обработка QR кода:', qrString);
+    updateRecognitionStatus('QR код распознан, поиск данных...', 'success');
+
+    try {
+        const resp = await fetch(`/scanner/api/qr/search?qr_string=${encodeURIComponent(qrString)}`);
+        if (!resp.ok) {
+            if (resp.status === 404) {
+                updateRecognitionStatus('QR код не найден в базе данных', 'info');
+                setTimeout(() => {
+                    detectedQRString = null;
+                    updateRecognitionStatus('Готов к сканированию...', 'scanning');
+                }, 3000);
+            } else {
+                throw new Error(`Ошибка поиска (статус: ${resp.status})`);
+            }
+            return;
+        }
+
+        const result = await resp.json();
+        console.log('✅ QR объект найден:', result.data);
+        isScanning = false;
+        showContentOverlay(result.data);
+    } catch (err) {
+        console.error('Ошибка поиска QR объекта:', err);
+        updateRecognitionStatus('Ошибка при поиске: ' + err.message, 'error');
+        setTimeout(() => {
+            detectedQRString = null;
+            updateRecognitionStatus('Готов к сканированию...', 'scanning');
+        }, 3000);
+    }
+}
+
+// Показать содержимое объекта
+function showContentOverlay(data) {
+    const overlay = document.getElementById('contentOverlay');
+    const content = document.getElementById('contentDisplay');
+
+    let html = `
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.name}</h2>
+    `;
+
+    if (data.photo) {
+        html += `<img src="/static/${data.photo}" alt="${data.name}" class="w-full rounded-lg mb-4">`;
+    }
+
+    if (data.description) {
+        html += `<div class="prose max-w-none text-gray-700 mb-4">${data.description}</div>`;
+    }
+
+    content.innerHTML = html;
+    overlay.classList.remove('hidden');
+    updateRecognitionStatus('Содержимое отображается', 'success');
+}
+
+// Обновление статуса распознавания
+function updateRecognitionStatus(text, type = 'scanning') {
+    const statusDiv = document.getElementById('recognitionStatus');
+    const statusText = document.getElementById('statusText');
+    if (!statusDiv || !statusText) return;
+
+    statusDiv.classList.remove('hidden');
+    statusText.textContent = text;
+
+    statusText.classList.remove('text-gray-500', 'text-green-600', 'text-blue-600', 'text-red-600');
+
+    if (type === 'success') {
+        statusText.classList.add('text-green-600', 'font-semibold');
+    } else if (type === 'info') {
+        statusText.classList.add('text-blue-600');
+    } else if (type === 'error') {
+        statusText.classList.add('text-red-600');
+    } else {
+        statusText.classList.add('text-gray-500');
+    }
+}
+
+// Закрыть содержимое
+function closeContentOverlay() {
+    document.getElementById('contentOverlay').classList.add('hidden');
+    setTimeout(() => {
+        detectedObjectId = null;
+        detectedQRString = null;
+        isScanning = true;
+        updateRecognitionStatus('Готов к сканированию...', 'scanning');
+        console.log('Готов к новому сканированию');
+    }, 500);
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+});
+
+// Очистка при выгрузке страницы
+window.addEventListener('beforeunload', () => {
+    stopCameraStream();
+});
+</script>
+
+<style>
+#scannerContainer {
+    min-height: 500px;
+}
+
+#contentOverlay {
+    backdrop-filter: blur(4px);
+}
+
+#contentDisplay {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#stabilityIndicator {
+    animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}

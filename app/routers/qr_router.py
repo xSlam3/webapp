@@ -11,6 +11,7 @@ from app.database import get_db
 from app.services.qr_object_service import (
     create_qr_object,
     get_qr_object_by_id,
+    get_qr_object_by_string,
     get_all_qr_objects,
     update_qr_object,
     delete_qr_object,
@@ -224,6 +225,38 @@ async def delete_qr_object_route(
     return RedirectResponse(url="/qr/objects", status_code=303)
 
 
+@router.get("/api/search")
+def search_qr_by_string(
+    qr_string: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """
+    API endpoint для поиска QR объекта по строке из QR кода
+
+    Args:
+        qr_string: Строка, полученная при сканировании QR кода
+        db: Сессия базы данных
+        current_user: Текущий пользователь (опционально)
+
+    Returns:
+        JSONResponse: Данные найденного объекта
+
+    Raises:
+        HTTPException: Если объект не найден
+    """
+    qr_object = get_qr_object_by_string(qr_string, db)
+    if not qr_object:
+        raise HTTPException(status_code=404, detail="QR объект не найден")
+
+    object_dict = qr_object_to_dict(qr_object)
+
+    return JSONResponse(content={
+        "success": True,
+        "data": object_dict
+    })
+
+
 @router.get("/view/{object_id}", include_in_schema=False)
 def view_qr_object(
     object_id: int,
@@ -233,25 +266,25 @@ def view_qr_object(
 ):
     """
     Просмотр QR объекта (публичная страница, доступна без авторизации)
-    
+
     Args:
         object_id: ID объекта
         request: HTTP запрос
         db: Сессия базы данных
         current_user: Текущий пользователь (опционально)
-    
+
     Returns:
         HTMLResponse: HTML страница с информацией об объекте
-    
+
     Raises:
         HTTPException: Если объект не найден
     """
     qr_object = get_qr_object_by_id(object_id, db)
     if not qr_object:
         raise HTTPException(status_code=404, detail="QR объект не найден")
-    
+
     object_dict = qr_object_to_dict(qr_object)
-    
+
     return templates.TemplateResponse(
         "qr_object_view.html",
         {

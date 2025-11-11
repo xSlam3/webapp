@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.exceptions import RequestValidationError
-from app.routers import materials_router, auth_router, chatbot_router, ar_router, qr_router
+from app.routers import materials_router, auth_router, chatbot_router, scanner_router, interactive_object_router
 from app.database import init_db, get_db
 from app.init_db import init_database
 from app.services.auth import get_current_user_optional
@@ -70,8 +70,8 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(materials_router.router)
 app.include_router(auth_router.router)
 app.include_router(chatbot_router.router)
-app.include_router(ar_router.router)
-app.include_router(qr_router.router)
+app.include_router(scanner_router.router)
+app.include_router(interactive_object_router.router)
 
 @app.get("/", include_in_schema=False)
 def root():

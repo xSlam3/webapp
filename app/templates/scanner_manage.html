@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">📋 Управление интерактивными объектами</h1>
+            <p class="text-gray-600 mt-2">AR теги и QR объекты для сканера</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="mb-6 flex flex-col sm:flex-row gap-3">
+            <a href="/scanner/create" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium text-center shadow-md">
+                ➕ Создать новый объект
+            </a>
+            <a href="/scanner/" class="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium text-center shadow-md">
+                📱 Открыть сканер
+            </a>
+        </div>
+
+        <!-- Objects List -->
+        {% if objects %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Название</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Изображение</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Создано</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for obj in objects %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ obj.id }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if obj.type == 'ar' %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">AR</span>
+                                {% else %}
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">QR</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm font-medium text-gray-900">{{ obj.name }}</div>
+                                {% if obj.description %}
+                                <div class="text-sm text-gray-500 truncate max-w-xs">{{ obj.description[:100] }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if obj.type == 'ar' and obj.tag_image %}
+                                <img src="/static/{{ obj.tag_image }}" alt="{{ obj.name }}" class="h-16 w-16 object-cover rounded">
+                                {% elif obj.type == 'qr' %}
+                                <div class="flex gap-2">
+                                    {% if obj.qr_code_path %}
+                                    <img src="/static/{{ obj.qr_code_path }}" alt="QR Code" class="h-16 w-16 object-cover rounded border">
+                                    {% endif %}
+                                    {% if obj.photo %}
+                                    <img src="/static/{{ obj.photo }}" alt="{{ obj.name }}" class="h-16 w-16 object-cover rounded">
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ obj.created_at[:10] if obj.created_at else 'N/A' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex gap-2">
+                                    {% if obj.type == 'qr' and obj.qr_code_path %}
+                                    <a href="/static/{{ obj.qr_code_path }}" download class="text-green-600 hover:text-green-900" title="Скачать QR код">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                        </svg>
+                                    </a>
+                                    {% endif %}
+                                    <form method="POST" action="/scanner/delete/{{ obj.type }}/{{ obj.id }}" onsubmit="return confirm('Вы уверены, что хотите удалить этот объект?')" class="inline">
+                                        <button type="submit" class="text-red-600 hover:text-red-900" title="Удалить">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-lg shadow-md p-8 text-center">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">Нет объектов</h3>
+            <p class="mt-1 text-sm text-gray-500">Начните с создания первого интерактивного объекта.</p>
+            <div class="mt-6">
+                <a href="/scanner/create" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                    ➕ Создать объект
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Info -->
+        <div class="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-blue-800">О типах объектов:</h3>
+                    <div class="mt-2 text-sm text-blue-700">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li><strong>AR теги</strong> - распознаются через анализ изображения (ORB алгоритм). Подходят для маркеров, упаковок товаров.</li>
+                            <li><strong>QR объекты</strong> - быстрое распознавание через QR код. QR код генерируется автоматически.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
