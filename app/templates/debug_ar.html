@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">Диагностика AR объектов</h1>
+            <p class="text-gray-600">Проверка наличия AR объектов с ORB признаками в базе данных</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <button id="checkButton" onclick="checkARObjects()"
+                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium mb-4">
+                Проверить AR объекты
+            </button>
+
+            <div id="results" class="hidden">
+                <h2 class="text-xl font-semibold text-gray-800 mb-3">Результаты:</h2>
+                <div id="resultContent" class="space-y-4"></div>
+            </div>
+
+            <div id="loading" class="hidden text-center py-8">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="mt-4 text-gray-600">Загрузка...</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+async function checkARObjects() {
+    const loadingDiv = document.getElementById('loading');
+    const resultsDiv = document.getElementById('results');
+    const resultContent = document.getElementById('resultContent');
+
+    loadingDiv.classList.remove('hidden');
+    resultsDiv.classList.add('hidden');
+
+    try {
+        const response = await fetch('/objects/api/debug/ar-objects');
+        const data = await response.json();
+
+        resultContent.innerHTML = '';
+
+        // Общая информация
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'bg-blue-50 border border-blue-200 rounded-lg p-4';
+        summaryDiv.innerHTML = `
+            <p class="text-lg font-semibold">Всего AR объектов: ${data.total_ar_objects}</p>
+            <p class="text-sm text-gray-600 mt-1">
+                С ORB признаками: ${data.objects.filter(obj => obj.has_orb_features).length}
+            </p>
+        `;
+        resultContent.appendChild(summaryDiv);
+
+        // Список объектов
+        if (data.objects.length === 0) {
+            const noObjectsDiv = document.createElement('div');
+            noObjectsDiv.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-4';
+            noObjectsDiv.innerHTML = `
+                <p class="text-yellow-800 font-medium">⚠️ В базе нет AR объектов</p>
+                <p class="text-sm text-yellow-700 mt-1">Создайте AR объект через админ-панель</p>
+            `;
+            resultContent.appendChild(noObjectsDiv);
+        } else {
+            data.objects.forEach(obj => {
+                const objDiv = document.createElement('div');
+                const statusClass = obj.has_orb_features ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                const statusIcon = obj.has_orb_features ? '✅' : '❌';
+                const statusText = obj.has_orb_features ? 'Готов к распознаванию' : 'НЕТ ORB признаков';
+
+                objDiv.className = `${statusClass} border rounded-lg p-4`;
+                objDiv.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h3 class="font-semibold text-gray-800">${statusIcon} ${obj.name}</h3>
+                            <p class="text-sm text-gray-600 mt-1">ID: ${obj.id}</p>
+                            <p class="text-sm text-gray-600">Статус: ${statusText}</p>
+                            ${obj.recognition_image ? `<p class="text-sm text-gray-600">Изображение: ${obj.recognition_image}</p>` : '<p class="text-sm text-red-600">Нет изображения для распознавания</p>'}
+                            ${obj.has_orb_features ? `
+                                <p class="text-xs text-gray-500 mt-2">
+                                    Ключевых точек: ${obj.orb_keypoints_length} символов<br>
+                                    Дескрипторов: ${obj.orb_descriptors_length} байт
+                                </p>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+                resultContent.appendChild(objDiv);
+            });
+        }
+
+        // Рекомендации
+        const hasObjectsWithoutOrb = data.objects.some(obj => !obj.has_orb_features);
+        if (hasObjectsWithoutOrb) {
+            const recommendationDiv = document.createElement('div');
+            recommendationDiv.className = 'bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4';
+            recommendationDiv.innerHTML = `
+                <h3 class="font-semibold text-orange-800 mb-2">💡 Рекомендации:</h3>
+                <ul class="list-disc list-inside text-sm text-orange-700 space-y-1">
+                    <li>Пересоздайте AR объекты без ORB признаков</li>
+                    <li>При создании обязательно загрузите четкое изображение для распознавания</li>
+                    <li>Убедитесь, что приложение запущено через venv (с установленным OpenCV)</li>
+                </ul>
+            `;
+            resultContent.appendChild(recommendationDiv);
+        }
+
+        resultsDiv.classList.remove('hidden');
+    } catch (error) {
+        resultContent.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p class="text-red-800 font-medium">❌ Ошибка при загрузке данных</p>
+                <p class="text-sm text-red-700 mt-1">${error.message}</p>
+            </div>
+        `;
+        resultsDiv.classList.remove('hidden');
+    } finally {
+        loadingDiv.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %}

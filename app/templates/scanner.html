@@ -37,17 +37,6 @@
                     </div>
                 </div>
 
-                <!-- Контейнер для отображения содержимого -->
-                <div id="contentOverlay" class="hidden absolute inset-0 bg-black bg-opacity-75 flex items-center justify-center z-10">
-                    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-                        <div class="p-6">
-                            <button onclick="closeContentOverlay()" class="float-right text-gray-400 hover:text-gray-600 text-2xl">×</button>
-                            <div id="contentDisplay" class="mt-4">
-                                <!-- Контент будет загружен здесь -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Индикатор загрузки -->
                 <div id="loadingIndicator" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-20">
@@ -393,7 +382,7 @@ function startDetection() {
 
                 updateRecognitionStatus('Распознавание AR изображения...', 'scanning');
 
-                const response = await fetch('/scanner/api/match-image', {
+                const response = await fetch('/objects/api/match-image', {
                     method: 'POST',
                     body: formData
                 });
@@ -413,10 +402,15 @@ function startDetection() {
                     updateRecognitionStatus(`Распознано: ${result.object_name} (${result.confidence}%)`, 'success');
                     hideStabilityIndicator();
 
-                    if (result.content) {
+                    if (result.object_id) {
                         detectedObjectId = result.object_id;
                         isScanning = false;
-                        showContentOverlay(result.content);
+                        // Переходим на страницу просмотра объекта
+                        updateRecognitionStatus('Переход к объекту...', 'success');
+                        // Останавливаем камеру перед переходом
+                        stopCameraStream();
+                        // Переходим на страницу просмотра
+                        window.location.href = `/objects/view/${result.object_id}`;
                     }
                 } else {
                     console.log('AR изображение не распознано');
@@ -517,7 +511,7 @@ async function handleQRCodeDetected(qrString) {
     updateRecognitionStatus('QR код распознан, поиск данных...', 'success');
 
     try {
-        const resp = await fetch(`/scanner/api/qr/search?qr_string=${encodeURIComponent(qrString)}`);
+        const resp = await fetch(`/objects/api/search-qr?qr_string=${encodeURIComponent(qrString)}`);
         if (!resp.ok) {
             if (resp.status === 404) {
                 updateRecognitionStatus('QR код не найден в базе данных', 'info');
@@ -534,7 +528,15 @@ async function handleQRCodeDetected(qrString) {
         const result = await resp.json();
         console.log('✅ QR объект найден:', result.data);
         isScanning = false;
-        showContentOverlay(result.data);
+
+        // Переходим на страницу просмотра объекта
+        if (result.data && result.data.id) {
+            updateRecognitionStatus('Объект найден, переход...', 'success');
+            // Останавливаем камеру перед переходом
+            stopCameraStream();
+            // Переходим на страницу просмотра
+            window.location.href = `/objects/view/${result.data.id}`;
+        }
     } catch (err) {
         console.error('Ошибка поиска QR объекта:', err);
         updateRecognitionStatus('Ошибка при поиске: ' + err.message, 'error');
@@ -543,28 +545,6 @@ async function handleQRCodeDetected(qrString) {
             updateRecognitionStatus('Готов к сканированию...', 'scanning');
         }, 3000);
     }
-}
-
-// Показать содержимое объекта
-function showContentOverlay(data) {
-    const overlay = document.getElementById('contentOverlay');
-    const content = document.getElementById('contentDisplay');
-
-    let html = `
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">${data.name}</h2>
-    `;
-
-    if (data.photo) {
-        html += `<img src="/static/${data.photo}" alt="${data.name}" class="w-full rounded-lg mb-4">`;
-    }
-
-    if (data.description) {
-        html += `<div class="prose max-w-none text-gray-700 mb-4">${data.description}</div>`;
-    }
-
-    content.innerHTML = html;
-    overlay.classList.remove('hidden');
-    updateRecognitionStatus('Содержимое отображается', 'success');
 }
 
 // Обновление статуса распознавания
@@ -589,18 +569,6 @@ function updateRecognitionStatus(text, type = 'scanning') {
     }
 }
 
-// Закрыть содержимое
-function closeContentOverlay() {
-    document.getElementById('contentOverlay').classList.add('hidden');
-    setTimeout(() => {
-        detectedObjectId = null;
-        detectedQRString = null;
-        isScanning = true;
-        updateRecognitionStatus('Готов к сканированию...', 'scanning');
-        console.log('Готов к новому сканированию');
-    }, 500);
-}
-
 // Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', () => {
     init();
@@ -615,25 +583,6 @@ window.addEventListener('beforeunload', () => {
 <style>
 #scannerContainer {
     min-height: 500px;
-}
-
-#contentOverlay {
-    backdrop-filter: blur(4px);
-}
-
-#contentDisplay {
-    animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 #stabilityIndicator {

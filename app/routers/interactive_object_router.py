@@ -220,6 +220,143 @@ async def create_object_route(
         )
 
 
+@router.get("/{object_id}/edit", include_in_schema=False)
+def edit_object_form(
+    object_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Форма редактирования интерактивного объекта
+
+    Args:
+        object_id: ID объекта
+        request: HTTP запрос
+        db: Сессия базы данных
+        current_user: Текущий пользователь
+
+    Returns:
+        HTMLResponse: HTML страница формы редактирования
+
+    Raises:
+        HTTPException: Если пользователь не администратор или объект не найден
+    """
+    user = get_user_by_username(db, current_user.get("username"))
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Только администраторы могут редактировать объекты")
+
+    obj = get_interactive_object_by_id(object_id, db)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Объект не найден")
+
+    object_dict = interactive_object_to_dict(obj)
+
+    return templates.TemplateResponse(
+        "edit_interactive_object.html",
+        {
+            "request": request,
+            "title": "Редактировать интерактивный объект",
+            "object": object_dict
+        }
+    )
+
+
+@router.post("/{object_id}/edit", include_in_schema=False)
+async def edit_object_route(
+    object_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    name: str = Form(...),
+    description: str = Form(None),
+    photo: UploadFile | None = File(None),
+    recognition_image: UploadFile | None = File(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Обновление интерактивного объекта
+
+    Args:
+        object_id: ID объекта
+        request: HTTP запрос
+        db: Сессия базы данных
+        name: Название объекта
+        description: Описание объекта (HTML) - статья для отображения
+        photo: Новое фото объекта для отображения (опционально)
+        recognition_image: Новое изображение для распознавания (опционально, только для AR)
+        current_user: Текущий пользователь
+
+    Returns:
+        RedirectResponse: Редирект на список объектов или JSON с ошибкой
+
+    Raises:
+        HTTPException: Если пользователь не администратор или объект не найден
+    """
+    user = get_user_by_username(db, current_user.get("username"))
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Только администраторы могут редактировать объекты")
+
+    obj = get_interactive_object_by_id(object_id, db)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Объект не найден")
+
+    # Валидация
+    if not name or len(name.strip()) == 0:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": "Название не может быть пустым"}
+        )
+
+    old_photo_path = obj.photo
+    old_recognition_image_path = obj.recognition_image
+    new_photo_path = None
+    new_recognition_image_path = None
+
+    try:
+        # Сохранение нового фото для отображения
+        if photo and photo.filename:
+            new_photo_path = save_file(photo, file_type="image")
+
+        # Сохранение нового изображения для распознавания (только для AR)
+        if recognition_image and recognition_image.filename:
+            if obj.object_type != ObjectType.AR:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "Изображение для распознавания доступно только для AR объектов"}
+                )
+            new_recognition_image_path = save_file(recognition_image, file_type="image")
+
+        # Обновление объекта
+        update_interactive_object(
+            object_id=object_id,
+            name=name.strip(),
+            description=description if description else None,
+            photo=new_photo_path if new_photo_path else obj.photo,
+            recognition_image=new_recognition_image_path if new_recognition_image_path else obj.recognition_image,
+            db=db
+        )
+
+        # Удаляем старые файлы только после успешного обновления
+        if new_photo_path and old_photo_path:
+            delete_file(old_photo_path)
+        if new_recognition_image_path and old_recognition_image_path:
+            delete_file(old_recognition_image_path)
+
+        return RedirectResponse(url="/objects/manage", status_code=303)
+
+    except Exception as e:
+        # Удаляем новые загруженные файлы в случае ошибки
+        if new_photo_path:
+            delete_file(new_photo_path)
+        if new_recognition_image_path:
+            delete_file(new_recognition_image_path)
+
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Ошибка при обновлении объекта: {str(e)}"}
+        )
+
+
 @router.post("/{object_id}/delete", include_in_schema=False)
 async def delete_object_route(
     object_id: int,
@@ -322,6 +459,62 @@ def get_ar_objects_api(
     return JSONResponse(content={"objects": objects_data})
 
 
+@router.get("/debug", include_in_schema=False)
+def debug_ar_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Страница диагностики AR объектов
+    """
+    user = get_user_by_username(db, current_user.get("username"))
+    if not user or not user.is_admin:
+        raise HTTPException(status_code=403, detail="Только администраторы могут просматривать диагностику")
+
+    user_info = {
+        "username": user.username,
+        "is_admin": user.is_admin
+    }
+
+    return templates.TemplateResponse(
+        "debug_ar.html",
+        {
+            "request": request,
+            "current_user": user_info
+        }
+    )
+
+
+@router.get("/api/debug/ar-objects", include_in_schema=False)
+def debug_ar_objects(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Диагностический эндпоинт для проверки AR объектов
+    """
+    ar_objects = get_ar_objects_for_recognition(db)
+
+    debug_info = {
+        "total_ar_objects": len(ar_objects),
+        "objects": []
+    }
+
+    for obj in ar_objects:
+        has_orb = bool(obj.orb_keypoints and obj.orb_descriptors)
+        debug_info["objects"].append({
+            "id": obj.id,
+            "name": obj.name,
+            "has_orb_features": has_orb,
+            "orb_keypoints_length": len(obj.orb_keypoints) if obj.orb_keypoints else 0,
+            "orb_descriptors_length": len(obj.orb_descriptors) if obj.orb_descriptors else 0,
+            "recognition_image": obj.recognition_image
+        })
+
+    return JSONResponse(content=debug_info)
+
+
 @router.post("/api/match-image", include_in_schema=False)
 async def match_image_with_orb(
     request: Request,
@@ -351,13 +544,28 @@ async def match_image_with_orb(
         image_data = await image.read()
 
         if not image_data:
+            print("⚠️ Получено пустое изображение")
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "error": "Пустое изображение"}
             )
 
+        print(f"📸 Получено изображение размером {len(image_data)} байт")
+
         # Получаем все AR объекты с ORB признаками
         ar_objects = get_ar_objects_for_recognition(db)
+        print(f"📦 Найдено AR объектов в БД: {len(ar_objects)}")
+
+        objects_with_orb = [obj for obj in ar_objects if obj.orb_keypoints and obj.orb_descriptors]
+        print(f"✅ AR объектов с ORB признаками: {len(objects_with_orb)}")
+
+        if len(objects_with_orb) == 0:
+            print("⚠️ В базе нет AR объектов с ORB признаками!")
+            return JSONResponse(content={
+                "success": True,
+                "matched": False,
+                "message": "В базе нет AR объектов для распознавания"
+            })
 
         best_match = None
         best_confidence = 0.0
@@ -367,6 +575,7 @@ async def match_image_with_orb(
         for obj in ar_objects:
             # Пропускаем объекты без ORB признаков
             if not obj.orb_keypoints or not obj.orb_descriptors:
+                print(f"⏭️ Объект '{obj.name}' (ID: {obj.id}): пропущен (нет ORB признаков)")
                 continue
 
             # Сопоставляем признаки
@@ -378,7 +587,7 @@ async def match_image_with_orb(
                 ratio_threshold=0.75
             )
 
-            print(f"Объект '{obj.name}' (ID: {obj.id}): matched={matched}, confidence={confidence:.2f}%, matches={match_count}")
+            print(f"🔍 Объект '{obj.name}' (ID: {obj.id}): matched={matched}, confidence={confidence:.2f}%, matches={match_count}")
 
             # Сохраняем лучший результат
             if matched and confidence > best_confidence:
@@ -403,10 +612,11 @@ async def match_image_with_orb(
                 }
             }
 
-            print(f"Найдено совпадение: {best_match.name} с уверенностью {best_confidence:.2f}%")
+            print(f"✅ Найдено совпадение: {best_match.name} с уверенностью {best_confidence:.2f}%")
             return JSONResponse(content=result)
 
         # Совпадение не найдено
+        print(f"❌ Изображение не распознано. Проверено объектов: {len(objects_with_orb)}")
         return JSONResponse(content={
             "success": True,
             "matched": False,
