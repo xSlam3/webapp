@@ -42,6 +42,7 @@ RUN mkdir -p app/static/uploads && \
 
 # Устанавливаем переменные окружения
 ENV PATH=/home/appuser/.local/bin:$PATH \
+    PYTHONPATH=/home/appuser/.local/lib/python3.10/site-packages:$PYTHONPATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 

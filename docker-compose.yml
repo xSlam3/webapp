@@ -46,7 +46,7 @@ services:
       - npm_internal
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${NPM_DB_ROOT_PASSWORD:-npm_root_password_change_this}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -99,7 +99,7 @@ services:
 
       # API Keys
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-meta-llama/llama-3.2-3b-instruct:free}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL}
 
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -123,34 +123,6 @@ services:
           cpus: '0.5'
           memory: 512M
 
-  # Backup service (опционально)
-  backup:
-    image: postgres:15-alpine
-    container_name: kb_backup
-    depends_on:
-      - db
-    volumes:
-      - ./backups:/backups
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-knowledge_base}
-      POSTGRES_USER: ${POSTGRES_USER:-kb_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
-      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
-    networks:
-      - kb_network
-    entrypoint: /bin/sh
-    command:
-      - -c
-      - |
-        while true; do
-          echo "Starting backup..."
-          pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB | gzip > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql.gz
-          echo "Backup completed"
-          find /backups -name "backup_*.sql.gz" -mtime +$$BACKUP_KEEP_DAYS -delete
-          echo "Old backups cleaned"
-          sleep 86400  # Backup every 24 hours
-        done
-    restart: unless-stopped
 
 volumes:
   postgres_data:
