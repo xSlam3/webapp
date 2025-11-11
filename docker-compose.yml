@@ -1,24 +1,111 @@
-version: '3.8'
-
 services:
-  web:
-    build: .
-    container_name: knowledge_base_app
+  # Nginx Proxy Manager
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx_proxy_manager
     ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-      - ./app/static/uploads:/app/app/static/uploads
-      - ./knowledge_base.db:/app/knowledge_base.db
+      - "80:80"     # HTTP
+      - "443:443"   # HTTPS
+      - "81:81"     # Admin UI
     environment:
-      - DATABASE_URL=sqlite:///./knowledge_base.db
-      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - ALGORITHM=${ALGORITHM:-HS256}
-      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-      - DEBUG=${DEBUG:-false}
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:-meta-llama/llama-3.2-3b-instruct:free}
+      DB_MYSQL_HOST: npm_db
+      DB_MYSQL_PORT: 3306
+      DB_MYSQL_USER: ${NPM_DB_USER:-npm_user}
+      DB_MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm_password_change_this}
+      DB_MYSQL_NAME: ${NPM_DB_NAME:-npm_db}
+      DISABLE_IPV6: ${DISABLE_IPV6:-true}
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - nginx_proxy_manager
+      - npm_internal
+    restart: unless-stopped
+    depends_on:
+      npm_db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:81"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # База данных для Nginx Proxy Manager (MySQL)
+  npm_db:
+    image: jc21/mariadb-aria:latest
+    container_name: npm_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${NPM_DB_ROOT_PASSWORD:-npm_root_password_change_this}
+      MYSQL_DATABASE: ${NPM_DB_NAME:-npm_db}
+      MYSQL_USER: ${NPM_DB_USER:-npm_user}
+      MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm_password_change_this}
+    volumes:
+      - npm_mysql_data:/var/lib/mysql
+    networks:
+      - npm_internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # База данных PostgreSQL для приложения
+  db:
+    image: postgres:15-alpine
+    container_name: kb_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-knowledge_base}
+      POSTGRES_USER: ${POSTGRES_USER:-kb_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - kb_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kb_user} -d ${POSTGRES_DB:-knowledge_base}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Веб-приложение
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kb_app
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Только необходимые volumes для production
+      - uploads_data:/app/app/static/uploads
+      - ./logs:/app/logs
+    environment:
+      # Database
+      DATABASE_URL: postgresql://${POSTGRES_USER:-kb_user}:${POSTGRES_PASSWORD:-change_this_password}@db:5432/${POSTGRES_DB:-knowledge_base}
+
+      # Security
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+
+      # Application
+      DEBUG: "false"
+      ENVIRONMENT: production
+
+      # API Keys
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-meta-llama/llama-3.2-3b-instruct:free}
+
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    networks:
+      - kb_network
+      - nginx_proxy_manager  # Сеть для связи с Nginx Proxy Manager
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
@@ -26,4 +113,62 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Ограничения ресурсов (опционально)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
+  # Backup service (опционально)
+  backup:
+    image: postgres:15-alpine
+    container_name: kb_backup
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-knowledge_base}
+      POSTGRES_USER: ${POSTGRES_USER:-kb_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+    networks:
+      - kb_network
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        while true; do
+          echo "Starting backup..."
+          pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB | gzip > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql.gz
+          echo "Backup completed"
+          find /backups -name "backup_*.sql.gz" -mtime +$$BACKUP_KEEP_DAYS -delete
+          echo "Old backups cleaned"
+          sleep 86400  # Backup every 24 hours
+        done
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  uploads_data:
+    driver: local
+  npm_data:
+    driver: local
+  npm_letsencrypt:
+    driver: local
+  npm_mysql_data:
+    driver: local
+
+networks:
+  kb_network:
+    driver: bridge
+  nginx_proxy_manager:
+    driver: bridge
+  npm_internal:
+    driver: bridge
+    internal: true  # Внутренняя сеть для NPM и его БД

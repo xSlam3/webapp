@@ -121,6 +121,14 @@
         background-color: #f9fafb;
         position: relative;
     }
+
+    /* Контейнер для кнопки и контента */
+    .chat-main-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
     
     /* Контейнер сообщений */
     #chat-container {
@@ -140,10 +148,10 @@
     /* Кнопка переключения боковой панели (мобильные) */
     .sidebar-toggle {
         display: none;
-        position: fixed;
-        top: 80px;
+        position: absolute;
+        top: 20px;
         left: 10px;
-        z-index: 1000;
+        z-index: 10;
         background-color: white;
         color: #374151;
         border: 1px solid #e5e7eb;
@@ -351,16 +359,16 @@
                 <!-- Список чатов будет добавлен через JS -->
             </div>
         </aside>
-        
-        <!-- Кнопка переключения боковой панели (мобильные) -->
-        <button class="sidebar-toggle" id="sidebar-toggle">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-        </button>
-        
+
         <!-- Основная область чата -->
         <main class="chat-main">
+            <!-- Кнопка переключения боковой панели (мобильные) -->
+            <button class="sidebar-toggle" id="sidebar-toggle">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+
             <div id="chat-container">
                 <div id="messages" class="space-y-4">
                     <!-- Сообщения будут добавлены через JS -->
@@ -688,11 +696,9 @@
             
             // Добавляем ответ бота
             addMessageToDOM(data.response, false);
-            
-            // Обновляем список чатов (только список, не перезагружаем текущий чат)
+
+            // Обновляем список чатов без перезагрузки текущего
             await loadChats();
-            // Обновляем только список чатов, не перезагружаем сообщения
-            renderChatList();
             
         } catch (error) {
             clearTimeout(timeoutId);

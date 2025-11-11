@@ -53,10 +53,16 @@ knowledge_base.db
 logs/
 
 # Static files uploads (optional - uncomment if you don't want to track uploads)
-# app/static/uploads/*
+app/static/uploads/*
+!app/static/uploads/.gitkeep
+
+# Backups
+backups/*.sql
+backups/*.sql.gz
+backups/*.dump
 
 # Docker
-.dockerignore
+*.tar
 
 # Testing
 .pytest_cache/
