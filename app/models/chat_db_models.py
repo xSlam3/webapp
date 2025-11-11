@@ -1,7 +1,7 @@
 """
 SQLAlchemy модели для чатов
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.sql import func
 from app.database import Base
 

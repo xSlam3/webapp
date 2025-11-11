@@ -106,13 +106,13 @@ def save_file(file: UploadFile, file_type: str = "image") -> str:
 def delete_file(file_path: str) -> None:
     """
     Безопасное удаление файла
-    
+
     Args:
         file_path: Относительный путь к файлу (например, "uploads/photo.jpg")
     """
     if not file_path:
         return
-    
+
     try:
         full_path = Path("app/static") / file_path
         if full_path.exists() and full_path.is_file():
@@ -120,63 +120,3 @@ def delete_file(file_path: str) -> None:
             print(f"Deleted file: {full_path}")
     except Exception as e:
         print(f"Ошибка при удалении файла {file_path}: {e}")
-
-
-def validate_file_type(file: UploadFile, file_type: str = "image") -> bool:
-    """
-    Проверяет, соответствует ли файл допустимому типу
-    
-    Args:
-        file: Загружаемый файл
-        file_type: Тип файла ("image" или "video")
-    
-    Returns:
-        True если файл допустимого типа, False в противном случае
-    """
-    if not file or not file.filename:
-        return False
-    
-    allowed_types = ALLOWED_IMAGE_TYPES if file_type == "image" else ALLOWED_VIDEO_TYPES
-    return file.content_type in allowed_types
-
-
-def get_file_extension(filename: str) -> str:
-    """
-    Получает расширение файла
-    
-    Args:
-        filename: Имя файла
-    
-    Returns:
-        Расширение файла (например, ".jpg")
-    """
-    return Path(filename).suffix.lower()
-
-
-def generate_unique_filename(filename: str, upload_dir: Path = UPLOAD_DIR) -> str:
-    """
-    Генерирует уникальное имя файла, если файл с таким именем уже существует
-    
-    Args:
-        filename: Исходное имя файла
-        upload_dir: Директория для загрузки
-    
-    Returns:
-        Уникальное имя файла
-    """
-    safe_filename = Path(filename).name
-    file_path = upload_dir / safe_filename
-    
-    if not file_path.exists():
-        return safe_filename
-    
-    counter = 1
-    name_without_ext = file_path.stem
-    extension = file_path.suffix
-    
-    while file_path.exists():
-        safe_filename = f"{name_without_ext}_{counter}{extension}"
-        file_path = upload_dir / safe_filename
-        counter += 1
-    
-    return safe_filename

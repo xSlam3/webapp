@@ -3,7 +3,6 @@ SQLAlchemy модель для интерактивных объектов (AR �
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, LargeBinary, Text, Enum
 from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
 

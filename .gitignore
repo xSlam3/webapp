@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+app/static/
 .claude
 *.py[cod]
 *$py.class

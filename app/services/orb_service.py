@@ -6,8 +6,7 @@ import cv2
 import numpy as np
 import json
 from pathlib import Path
-from typing import Tuple, Optional, List, Dict
-import base64
+from typing import Tuple, Optional, List
 
 
 def extract_orb_features(image_path: str, max_features: int = 500) -> Tuple[Optional[str], Optional[bytes]]:

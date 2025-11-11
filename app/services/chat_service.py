@@ -3,7 +3,6 @@
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from sqlalchemy.sql import func
 from app.models.chat_db_models import ChatSession, ChatMessage
 from typing import Optional, List
 

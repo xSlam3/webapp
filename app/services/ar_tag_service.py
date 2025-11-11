@@ -2,7 +2,6 @@
 Сервис для работы с AR тегами
 """
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
 from typing import List, Optional, Dict
 from app.models.ar_tag_db_models import ARTag
 from app.models.material_db_models import Material

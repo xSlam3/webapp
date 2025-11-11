@@ -37,7 +37,7 @@ def init_db():
     """
     Инициализация БД - создание всех таблиц
     """
-    from app.models import user_db_models, material_db_models, chat_db_models, ar_tag_db_models, qr_object_db_models
+    from app.models import user_db_models, material_db_models, chat_db_models, ar_tag_db_models, qr_object_db_models, interactive_object_db_models
     # Импортируем модели для регистрации в Base
     Base.metadata.create_all(bind=engine)
 
