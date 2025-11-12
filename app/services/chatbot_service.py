@@ -6,7 +6,7 @@ import re
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from app.config import settings
-from app.services.material_service import search_materials, get_all_materials
+from app.services.material_service import semantic_search_materials, search_materials, get_all_materials
 
 
 def format_materials_as_context(materials: List) -> str:
@@ -27,14 +27,20 @@ def format_materials_as_context(materials: List) -> str:
 
 
 def search_relevant_materials(db: Session, query: str, limit: int = 5) -> List:
-    """Ищет релевантные материалы по запросу пользователя"""
+    """
+    Ищет релевантные материалы по запросу пользователя используя семантический поиск
+    """
     if not query or len(query.strip()) == 0:
         # Если запрос пустой, возвращаем последние материалы
         return get_all_materials(db, skip=0, limit=limit)
-    
-    # Ищем материалы по запросу
-    materials = search_materials(db, query)
-    
+
+    # НОВОЕ: Используем семантический поиск вместо простого текстового
+    materials = semantic_search_materials(db, query, limit=limit, threshold=0.25)
+
+    # Если семантический поиск ничего не нашел, пробуем обычный текстовый поиск
+    if len(materials) == 0:
+        materials = search_materials(db, query)[:limit]
+
     # Если найдено меньше материалов, дополняем последними
     if len(materials) < limit:
         all_materials = get_all_materials(db, skip=0, limit=limit * 2)
@@ -43,7 +49,7 @@ def search_relevant_materials(db: Session, query: str, limit: int = 5) -> List:
         for material in all_materials:
             if material.id not in existing_ids and len(materials) < limit:
                 materials.append(material)
-    
+
     return materials[:limit]
 
 
