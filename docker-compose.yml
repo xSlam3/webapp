@@ -1,128 +1,76 @@
 services:
-  # Nginx Proxy Manager
-  nginx-proxy-manager:
-    image: jc21/nginx-proxy-manager:latest
-    container_name: nginx_proxy_manager
-    ports:
-      - "80:80"     # HTTP
-      - "443:443"   # HTTPS
-      - "81:81"     # Admin UI
-    environment:
-      DB_MYSQL_HOST: npm_db
-      DB_MYSQL_PORT: 3306
-      DB_MYSQL_USER: ${NPM_DB_USER:-npm_user}
-      DB_MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm_password_change_this}
-      DB_MYSQL_NAME: ${NPM_DB_NAME:-npm_db}
-      DISABLE_IPV6: ${DISABLE_IPV6:-true}
-    volumes:
-      - npm_data:/data
-      - npm_letsencrypt:/etc/letsencrypt
-    networks:
-      - nginx_proxy_manager
-      - npm_internal
-    restart: unless-stopped
-    depends_on:
-      npm_db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:81"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  # База данных для Nginx Proxy Manager (MySQL)
-  npm_db:
-    image: jc21/mariadb-aria:latest
-    container_name: npm_mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${NPM_DB_ROOT_PASSWORD:-npm_root_password_change_this}
-      MYSQL_DATABASE: ${NPM_DB_NAME:-npm_db}
-      MYSQL_USER: ${NPM_DB_USER:-npm_user}
-      MYSQL_PASSWORD: ${NPM_DB_PASSWORD:-npm_password_change_this}
-    volumes:
-      - npm_mysql_data:/var/lib/mysql
-    networks:
-      - npm_internal
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${NPM_DB_ROOT_PASSWORD:-npm_root_password_change_this}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # База данных PostgreSQL для приложения
-  db:
+  # PostgreSQL база данных
+  postgres:
     image: postgres:15-alpine
-    container_name: kb_postgres
+    container_name: webapp_postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-knowledge_base}
-      POSTGRES_USER: ${POSTGRES_USER:-kb_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+      POSTGRES_USER: ${POSTGRES_USER:-webapp_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-webapp_password}
+      POSTGRES_DB: ${POSTGRES_DB:-webapp_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backups:/backups
-    networks:
-      - kb_network
-    restart: unless-stopped
+      # Автоматическая инициализация БД при первом запуске
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kb_user} -d ${POSTGRES_DB:-knowledge_base}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-webapp_user} -d ${POSTGRES_DB:-webapp_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - webapp_network
 
-  # Веб-приложение
+  # FastAPI веб-приложение
   web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kb_app
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      # Только необходимые volumes для production
-      - uploads_data:/app/app/static/uploads
-      - ./logs:/app/logs
+    container_name: webapp_web
     environment:
-      # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-kb_user}:${POSTGRES_PASSWORD:-change_this_password}@db:5432/${POSTGRES_DB:-knowledge_base}
-
-      # Security
-      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set}
-      ALGORITHM: ${ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
-
-      # Application
-      DEBUG: "false"
-      ENVIRONMENT: production
-
-      # API Keys
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL}
-
-      # Logging
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-webapp_user}:${POSTGRES_PASSWORD:-webapp_password}@postgres:5432/${POSTGRES_DB:-webapp_db}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+      - DEBUG=${DEBUG:-false}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - OPENROUTER_MODEL=${OPENROUTER_MODEL}
+    volumes:
+      - ./app:/app/app
+      - ./main.py:/app/main.py
+      - uploads_data:/app/app/static/uploads
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
-      - kb_network
-      - nginx_proxy_manager  # Сеть для связи с Nginx Proxy Manager
+      - webapp_network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    # Ограничения ресурсов (опционально)
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2G
-        reservations:
-          cpus: '0.5'
-          memory: 512M
 
+  # Nginx Proxy Manager для управления проксированием и SSL
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: webapp_nginx_proxy
+    restart: unless-stopped
+    ports:
+      # HTTP
+      - "${NPM_HTTP_PORT:-80}:80"
+      # HTTPS
+      - "${NPM_HTTPS_PORT:-443}:443"
+      # Admin Web Interface
+      - "${NPM_ADMIN_PORT:-81}:81"
+    environment:
+      # Отключаем IPv6 если не нужен
+      DISABLE_IPV6: 'true'
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    networks:
+      - webapp_network
+    depends_on:
+      - web
 
 volumes:
   postgres_data:
@@ -133,14 +81,7 @@ volumes:
     driver: local
   npm_letsencrypt:
     driver: local
-  npm_mysql_data:
-    driver: local
 
 networks:
-  kb_network:
+  webapp_network:
     driver: bridge
-  nginx_proxy_manager:
-    driver: bridge
-  npm_internal:
-    driver: bridge
-    internal: true  # Внутренняя сеть для NPM и его БД
