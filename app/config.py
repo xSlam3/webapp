@@ -30,9 +30,9 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT")
     
     # OpenRouter API
-    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY")
     OPENROUTER_API_URL: str = "https://openrouter.ai/api/v1/chat/completions"
-    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.2-3b-instruct:free")
+    OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL")
     
     class Config:
         case_sensitive = True

@@ -178,25 +178,29 @@ def profile_page(
 # API endpoints
 # -----------------------------------------------------------------------------
 
-@router.post("/register")
-def register(
-    username: str = Form(...), 
+@router.post("/admin/create-user")
+def create_user_by_admin(
+    username: str = Form(...),
     password: str = Form(...),
+    is_admin: bool = Form(False),
+    admin: dict = Depends(get_current_admin_user),
     db: Session = Depends(get_db)
 ):
     """
-    Регистрация нового пользователя
-    
+    Создание нового пользователя администратором (только для админов)
+
     Args:
         username: Имя пользователя
         password: Пароль
+        is_admin: Является ли пользователь администратором
+        admin: Текущий пользователь-администратор
         db: Сессия базы данных
-    
+
     Returns:
-        JSONResponse: JSON с результатом регистрации
-    
+        JSONResponse: JSON с результатом создания
+
     Raises:
-        HTTPException: Если валидация не пройдена или пользователь уже существует
+        HTTPException: Если валидация не пройдена, пользователь уже существует или текущий пользователь не администратор
     """
     # Валидация
     if not username or len(username.strip()) < 3:
@@ -204,15 +208,15 @@ def register(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Имя пользователя должно содержать минимум 3 символа"
         )
-    
+
     if not password or len(password) < 6:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Пароль должен содержать минимум 6 символов"
         )
-    
+
     username = username.strip().lower()
-    
+
     # Проверка существования
     existing_user = get_user_by_username(db, username)
     if existing_user:
@@ -220,22 +224,24 @@ def register(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Пользователь с таким именем уже существует"
         )
-    
+
     # Создание пользователя
     try:
-        create_user(db, username, password, is_admin=False)
+        create_user(db, username, password, is_admin=is_admin)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-    
+
     return JSONResponse(
         status_code=status.HTTP_201_CREATED,
         content={
             "success": True,
-            "message": "Регистрация успешна",
-            "detail": f"Пользователь {username} создан"
+            "message": "Пользователь создан успешно",
+            "detail": f"Пользователь {username} создан",
+            "username": username,
+            "is_admin": is_admin
         }
     )
 

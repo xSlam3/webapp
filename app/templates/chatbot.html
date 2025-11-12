@@ -14,6 +14,8 @@
         border-radius: 8px;
         box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
         overflow: hidden;
+        max-width: 100%;
+        width: 100%;
     }
     
     /* Боковая панель */
@@ -163,6 +165,11 @@
     
     /* Мобильные стили */
     @media (max-width: 768px) {
+        body {
+            overflow: hidden;
+            padding-bottom: 64px !important;
+        }
+
         .sidebar {
             position: fixed;
             left: -260px;
@@ -172,20 +179,79 @@
             transition: left 0.3s;
             box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
         }
-        
+
         .sidebar.open {
             left: 0;
         }
-        
+
         .sidebar-toggle {
             display: block;
         }
-        
+
         .chat-layout {
-            height: calc(100vh - 120px);
+            height: calc(100vh - 64px);
+            min-height: calc(100vh - 64px);
+            max-height: calc(100vh - 64px);
+            border-radius: 0;
+            box-sizing: border-box;
+        }
+
+        .max-w-7xl {
+            height: calc(100vh - 64px) !important;
+        }
+
+        .chat-main {
+            width: 100%;
+            max-width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #chat-container {
+            padding: 60px 10px 150px 10px;
+            max-width: 100%;
+            box-sizing: border-box;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        #input-section {
+            position: fixed;
+            bottom: 64px;
+            left: 0;
+            right: 0;
+            padding: 10px;
+            max-width: 100%;
+            box-sizing: border-box;
+            background-color: white;
+            border-top: 1px solid #e5e7eb;
+            z-index: 40;
+        }
+
+        .message {
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .message-content {
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+        }
+
+        #loading-indicator {
+            position: fixed;
+            bottom: 135px;
+            left: 0;
+            right: 0;
+            margin: 0 10px;
+            z-index: 39;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
     }
-    
+
     /* Сообщения */
     .message {
         display: flex;
@@ -345,8 +411,8 @@
     }
 </style>
 
-<div class="max-w-7xl mx-auto px-4 py-6">
-    <div class="chat-layout">
+<div class="max-w-7xl mx-auto" style="padding: 0; width: 100%; height: 100vh; overflow: hidden;">
+    <div class="chat-layout" style="margin: 0;">
         <!-- Боковая панель -->
         <aside class="sidebar" id="sidebar">
             <button class="new-chat-btn" id="new-chat-btn">
@@ -387,11 +453,12 @@
             <!-- Форма ввода -->
             <div id="input-section">
                 <form id="chat-form" class="flex gap-2">
-                    <input 
-                        type="text" 
-                        id="message-input" 
-                        placeholder="Введите ваш вопрос..." 
+                    <input
+                        type="text"
+                        id="message-input"
+                        placeholder="Введите ваш вопрос..."
                         class="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900"
+                        style="font-size: 16px;"
                         required
                         autocomplete="off"
                     >
@@ -633,8 +700,8 @@
         }
         
         // Добавляем сообщение пользователя
-        addMessageToDOM(message, true);
-        
+        addMessageToDOM(message, true, false);
+
         // Очищаем поле ввода
         messageInput.value = '';
         messageInput.disabled = true;
@@ -770,9 +837,18 @@
         
         // Фокус на поле ввода
         messageInput.focus();
-        
+
         // Автоматическая прокрутка при изменении размера окна
         window.addEventListener('resize', scrollToBottom);
+
+        // Обработка виртуальной клавиатуры на мобильных устройствах
+        if (window.innerWidth <= 768) {
+            messageInput.addEventListener('focus', () => {
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 300);
+            });
+        }
     }
     
     // Запуск инициализации
