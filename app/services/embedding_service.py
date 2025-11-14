@@ -50,27 +50,27 @@ def generate_embedding(text: str) -> List[float]:
         return []
 
 
-def generate_material_embedding(title: str, text: Optional[str] = None) -> str:
+def generate_article_embedding(title: str, text: Optional[str] = None) -> str:
     """
-    Генерирует эмбеддинг для материала (комбинирует заголовок и текст)
+    Generates embedding for an article (combines title and text)
 
     Args:
-        title: Заголовок материала
-        text: Текст материала (опционально)
+        title: Article title
+        text: Article text (optional)
 
     Returns:
-        str: JSON строка с векторным представлением
+        str: JSON string with vector representation
     """
-    # Комбинируем заголовок и текст для лучшего контекста
+    # Combine title and text for better context
     combined_text = title
     if text:
-        # Ограничиваем текст для экономии памяти и скорости
+        # Limit text to save memory and speed
         text_preview = text[:1000] if len(text) > 1000 else text
         combined_text = f"{title}. {text_preview}"
 
     embedding = generate_embedding(combined_text)
 
-    # Сохраняем как JSON строку
+    # Save as JSON string
     return json.dumps(embedding) if embedding else None
 
 

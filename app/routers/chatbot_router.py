@@ -294,7 +294,7 @@ async def chat_api(
     
     return JSONResponse(content={
         "response": result["response"],
-        "materials_used": result.get("materials_used", 0),
+        "articles_used": result.get("articles_used", 0),
         "chat_id": chat_id
     })
 

@@ -1,149 +1,149 @@
 """
-Утилиты для работы с материалами базы знаний (обертка для БД)
+Utilities for working with knowledge base articles (wrapper for DB)
 """
 from sqlalchemy.orm import Session
-from app.services.material_service import (
-    create_material as db_create_material,
-    get_material_by_id as db_get_material_by_id,
-    get_all_materials as db_get_all_materials,
-    update_material as db_update_material,
-    delete_material as db_delete_material,
-    search_materials as db_search_materials
+from app.services.article_service import (
+    create_article as db_create_article,
+    get_article_by_id as db_get_article_by_id,
+    get_all_articles as db_get_all_articles,
+    update_article as db_update_article,
+    delete_article as db_delete_article,
+    search_articles as db_search_articles
 )
-from app.models.material_models import Material
+from app.models.article_models import Article
 
 
-def create_material(material: Material, db: Session, created_by: str = None) -> Material:
+def create_article(article: Article, db: Session, created_by: str = None) -> Article:
     """
-    Создает новый материал с автоматически сгенерированным ID
-    
+    Creates a new article with auto-generated ID
+
     Args:
-        material: Модель материала
-        db: Сессия базы данных
-        created_by: Имя создателя
-    
+        article: Article model
+        db: Database session
+        created_by: Creator username
+
     Returns:
-        Material: Созданный материал
+        Article: Created article
     """
-    db_material = db_create_material(
+    db_article = db_create_article(
         db=db,
-        title=material.title,
-        text=material.text,
-        photo=material.photo,
-        video=material.video,
+        title=article.title,
+        text=article.text,
+        photo=article.photo,
+        video=article.video,
         created_by=created_by
     )
-    
-    # Конвертируем в Pydantic модель
-    return Material(
-        id=db_material.id,
-        title=db_material.title,
-        text=db_material.text,
-        photo=db_material.photo,
-        video=db_material.video,
-        created_by=db_material.created_by,
-        created_at=db_material.created_at,
-        updated_at=db_material.updated_at
+
+    # Convert to Pydantic model
+    return Article(
+        id=db_article.id,
+        title=db_article.title,
+        text=db_article.text,
+        photo=db_article.photo,
+        video=db_article.video,
+        created_by=db_article.created_by,
+        created_at=db_article.created_at,
+        updated_at=db_article.updated_at
     )
 
 
-def read_materials(db: Session):
+def read_articles(db: Session):
     """
-    Возвращает все материалы
-    
+    Returns all articles
+
     Args:
-        db: Сессия базы данных
-    
+        db: Database session
+
     Returns:
-        List[dict]: Список материалов в виде словарей
+        List[dict]: List of articles as dictionaries
     """
-    db_materials = db_get_all_materials(db)
+    db_articles = db_get_all_articles(db)
     return [
         {
-            "id": m.id,
-            "title": m.title,
-            "text": m.text,
-            "photo": m.photo,
-            "video": m.video,
-            "created_by": m.created_by,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-            "updated_at": m.updated_at.isoformat() if m.updated_at else None
+            "id": a.id,
+            "title": a.title,
+            "text": a.text,
+            "photo": a.photo,
+            "video": a.video,
+            "created_by": a.created_by,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+            "updated_at": a.updated_at.isoformat() if a.updated_at else None
         }
-        for m in db_materials
+        for a in db_articles
     ]
 
 
-def read_material_by_id(material_id: int, db: Session):
+def read_article_by_id(article_id: int, db: Session):
     """
-    Находит материал по ID
-    
+    Finds article by ID
+
     Args:
-        material_id: ID материала
-        db: Сессия базы данных
-    
+        article_id: Article ID
+        db: Database session
+
     Returns:
-        Optional[dict]: Материал в виде словаря или None
+        Optional[dict]: Article as dictionary or None
     """
-    db_material = db_get_material_by_id(db, material_id)
-    if not db_material:
+    db_article = db_get_article_by_id(db, article_id)
+    if not db_article:
         return None
-    
+
     return {
-        "id": db_material.id,
-        "title": db_material.title,
-        "text": db_material.text,
-        "photo": db_material.photo,
-        "video": db_material.video,
-        "created_by": db_material.created_by,
-        "created_at": db_material.created_at.isoformat() if db_material.created_at else None,
-        "updated_at": db_material.updated_at.isoformat() if db_material.updated_at else None
+        "id": db_article.id,
+        "title": db_article.title,
+        "text": db_article.text,
+        "photo": db_article.photo,
+        "video": db_article.video,
+        "created_by": db_article.created_by,
+        "created_at": db_article.created_at.isoformat() if db_article.created_at else None,
+        "updated_at": db_article.updated_at.isoformat() if db_article.updated_at else None
     }
 
 
-def update_material(material_id: int, updated_data: dict, db: Session):
+def update_article(article_id: int, updated_data: dict, db: Session):
     """
-    Обновляет материал по ID
-    
+    Updates article by ID
+
     Args:
-        material_id: ID материала
-        updated_data: Данные для обновления
-        db: Сессия базы данных
-    
+        article_id: Article ID
+        updated_data: Data to update
+        db: Database session
+
     Returns:
-        Optional[dict]: Обновленный материал в виде словаря или None
+        Optional[dict]: Updated article as dictionary or None
     """
-    db_material = db_get_material_by_id(db, material_id)
-    if not db_material:
+    db_article = db_get_article_by_id(db, article_id)
+    if not db_article:
         return None
-    
-    db_update_material(db, db_material, **updated_data)
-    
+
+    db_update_article(db, db_article, **updated_data)
+
     return {
-        "id": db_material.id,
-        "title": db_material.title,
-        "text": db_material.text,
-        "photo": db_material.photo,
-        "video": db_material.video,
-        "created_by": db_material.created_by,
-        "created_at": db_material.created_at.isoformat() if db_material.created_at else None,
-        "updated_at": db_material.updated_at.isoformat() if db_material.updated_at else None
+        "id": db_article.id,
+        "title": db_article.title,
+        "text": db_article.text,
+        "photo": db_article.photo,
+        "video": db_article.video,
+        "created_by": db_article.created_by,
+        "created_at": db_article.created_at.isoformat() if db_article.created_at else None,
+        "updated_at": db_article.updated_at.isoformat() if db_article.updated_at else None
     }
 
 
-def delete_material(material_id: int, db: Session):
+def delete_article(article_id: int, db: Session):
     """
-    Удаляет материал по ID
-    
+    Deletes article by ID
+
     Args:
-        material_id: ID материала
-        db: Сессия базы данных
-    
+        article_id: Article ID
+        db: Database session
+
     Returns:
-        Optional[dict]: Словарь с ID удаленного материала или None
+        Optional[dict]: Dictionary with deleted article ID or None
     """
-    db_material = db_get_material_by_id(db, material_id)
-    if not db_material:
+    db_article = db_get_article_by_id(db, article_id)
+    if not db_article:
         return None
-    
-    db_delete_material(db, db_material)
-    return {"id": material_id}
+
+    db_delete_article(db, db_article)
+    return {"id": article_id}

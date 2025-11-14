@@ -1,56 +1,56 @@
 """
-Сервис для работы с чат-ботом на основе OpenRouter API
+Service for working with chatbot based on OpenRouter API
 """
 import httpx
 import re
 from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from app.config import settings
-from app.services.material_service import semantic_search_materials, search_materials, get_all_materials
+from app.services.article_service import semantic_search_articles, search_articles, get_all_articles
 
 
-def format_materials_as_context(materials: List) -> str:
-    """Форматирует материалы в контекст для промпта"""
-    if not materials:
-        return "В базе знаний пока нет материалов."
-    
-    context_parts = ["Документация из базы знаний:\n"]
-    for i, material in enumerate(materials, 1):
-        context_parts.append(f"\n--- Материал {i} ---")
-        context_parts.append(f"Заголовок: {material.title}")
-        if material.text:
-            # Ограничиваем длину текста, чтобы не превысить лимиты токенов
-            text = material.text[:2000] if len(material.text) > 2000 else material.text
-            context_parts.append(f"Содержание: {text}")
-    
+def format_articles_as_context(articles: List) -> str:
+    """Formats articles into context for prompt"""
+    if not articles:
+        return "There are no articles in the knowledge base yet."
+
+    context_parts = ["Documentation from knowledge base:\n"]
+    for i, article in enumerate(articles, 1):
+        context_parts.append(f"\n--- Article {i} ---")
+        context_parts.append(f"Title: {article.title}")
+        if article.text:
+            # Limit text length to avoid token limits
+            text = article.text[:2000] if len(article.text) > 2000 else article.text
+            context_parts.append(f"Content: {text}")
+
     return "\n".join(context_parts)
 
 
-def search_relevant_materials(db: Session, query: str, limit: int = 5) -> List:
+def search_relevant_articles(db: Session, query: str, limit: int = 5) -> List:
     """
-    Ищет релевантные материалы по запросу пользователя используя семантический поиск
+    Searches for relevant articles by user query using semantic search
     """
     if not query or len(query.strip()) == 0:
-        # Если запрос пустой, возвращаем последние материалы
-        return get_all_materials(db, skip=0, limit=limit)
+        # If query is empty, return latest articles
+        return get_all_articles(db, skip=0, limit=limit)
 
-    # НОВОЕ: Используем семантический поиск вместо простого текстового
-    materials = semantic_search_materials(db, query, limit=limit, threshold=0.25)
+    # Use semantic search instead of simple text search
+    articles = semantic_search_articles(db, query, limit=limit, threshold=0.25)
 
-    # Если семантический поиск ничего не нашел, пробуем обычный текстовый поиск
-    if len(materials) == 0:
-        materials = search_materials(db, query)[:limit]
+    # If semantic search found nothing, try regular text search
+    if len(articles) == 0:
+        articles = search_articles(db, query)[:limit]
 
-    # Если найдено меньше материалов, дополняем последними
-    if len(materials) < limit:
-        all_materials = get_all_materials(db, skip=0, limit=limit * 2)
-        # Добавляем материалы, которых еще нет в результатах
-        existing_ids = {m.id for m in materials}
-        for material in all_materials:
-            if material.id not in existing_ids and len(materials) < limit:
-                materials.append(material)
+    # If found less articles, supplement with latest ones
+    if len(articles) < limit:
+        all_articles = get_all_articles(db, skip=0, limit=limit * 2)
+        # Add articles that are not yet in results
+        existing_ids = {a.id for a in articles}
+        for article in all_articles:
+            if article.id not in existing_ids and len(articles) < limit:
+                articles.append(article)
 
-    return materials[:limit]
+    return articles[:limit]
 
 
 async def get_chatbot_response(
@@ -75,9 +75,9 @@ async def get_chatbot_response(
             "response": None
         }
     
-    # Ищем релевантные материалы
-    relevant_materials = search_relevant_materials(db, user_query)
-    context = format_materials_as_context(relevant_materials)
+    # Search for relevant articles
+    relevant_articles = search_relevant_articles(db, user_query)
+    context = format_articles_as_context(relevant_articles)
     
     # Формируем системный промпт
     system_prompt = """Ты - полезный ассистент, который помогает пользователям находить информацию в базе знаний.
@@ -151,7 +151,7 @@ async def get_chatbot_response(
                 return {
                     "response": assistant_message,
                     "error": None,
-                    "materials_used": len(relevant_materials)
+                    "articles_used": len(relevant_articles)
                 }
             else:
                 return {

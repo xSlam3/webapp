@@ -1,74 +1,74 @@
 """
-Pydantic модели для материалов базы знаний
+Pydantic models for knowledge base articles
 """
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 
-class MaterialBase(BaseModel):
-    """Базовая модель материала"""
+class ArticleBase(BaseModel):
+    """Base article model"""
     title: str = Field(..., min_length=2, max_length=200)
     text: Optional[str] = Field(None, max_length=10000)
-    
+
     @field_validator('title')
     @classmethod
     def title_not_empty(cls, v: str) -> str:
-        """Проверка, что заголовок не пустой"""
+        """Validate that title is not empty"""
         if not v or not v.strip():
-            raise ValueError('Заголовок не может быть пустым')
+            raise ValueError('Title cannot be empty')
         return v.strip()
-    
+
     @field_validator('text')
     @classmethod
     def text_cleanup(cls, v: Optional[str]) -> Optional[str]:
-        """Очистка текста"""
+        """Clean up text content"""
         if v:
             return v.strip() if v.strip() else None
         return None
 
 
-class MaterialCreate(MaterialBase):
-    """Модель для создания материала"""
+class ArticleCreate(ArticleBase):
+    """Model for creating an article"""
     pass
 
 
-class MaterialUpdate(BaseModel):
-    """Модель для обновления материала (все поля опциональны)"""
+class ArticleUpdate(BaseModel):
+    """Model for updating an article (all fields optional)"""
     title: Optional[str] = Field(None, min_length=2, max_length=200)
     text: Optional[str] = Field(None, max_length=10000)
     photo: Optional[str] = None
     video: Optional[str] = None
-    
+
     @field_validator('title')
     @classmethod
     def title_not_empty(cls, v: Optional[str]) -> Optional[str]:
         if v is not None and (not v or not v.strip()):
-            raise ValueError('Заголовок не может быть пустым')
+            raise ValueError('Title cannot be empty')
         return v.strip() if v else None
 
 
-class Material(MaterialBase):
-    """Полная модель материала"""
+class Article(ArticleBase):
+    """Complete article model"""
     id: int
     photo: Optional[str] = None
     video: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
-    created_by: Optional[str] = None  # username создателя
-    
+    created_by: Optional[str] = None  # username of creator
+
     class Config:
         from_attributes = True
 
 
-class MaterialResponse(Material):
-    """Модель для ответов API"""
+class ArticleResponse(Article):
+    """Model for API responses"""
     pass
 
 
-class MaterialListResponse(BaseModel):
-    """Модель для списка материалов"""
-    materials: list[MaterialResponse]
+class ArticleListResponse(BaseModel):
+    """Model for article list responses"""
+    articles: list[ArticleResponse]
     total: int
 
 

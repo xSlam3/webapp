@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
-from app.routers import materials_router, auth_router, chatbot_router, interactive_object_router
+from app.routers import articles_router, auth_router, chatbot_router, interactive_object_router
 from app.database import init_db, get_db
 from app.init_db import init_database
 from app.services.auth import get_current_user_optional
@@ -65,8 +65,8 @@ async def startup_event():
 # Монтируем папку статики
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Подключаем маршруты
-app.include_router(materials_router.router)
+# Include routers
+app.include_router(articles_router.router)
 app.include_router(auth_router.router)
 app.include_router(chatbot_router.router)
 app.include_router(interactive_object_router.router)

@@ -1,14 +1,14 @@
 """
-SQLAlchemy модели для материалов
+SQLAlchemy models for knowledge base articles
 """
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.sql import func
 from app.database import Base
 
 
-class Material(Base):
-    """Модель материала в БД"""
-    __tablename__ = "materials"
+class Article(Base):
+    """Article model in database"""
+    __tablename__ = "articles"
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(200), nullable=False, index=True)
@@ -18,10 +18,10 @@ class Material(Base):
     created_by = Column(String(50), ForeignKey("users.username"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
-    embedding = Column(Text, nullable=True)  # JSON массив векторного представления
-    
-    # Связь с пользователем (опционально, без relationship для простоты)
-    
+    embedding = Column(Text, nullable=True)  # JSON array of vector representation
+
+    # Relationship with user (optional, without relationship for simplicity)
+
     def __repr__(self):
-        return f"<Material(id={self.id}, title='{self.title[:30]}...')>"
+        return f"<Article(id={self.id}, title='{self.title[:30]}...')>"
 
