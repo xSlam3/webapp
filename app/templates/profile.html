@@ -1,45 +1,45 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
+<div class="min-h-screen bg-white py-4 sm:py-6 lg:py-8">
     <div class="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
-        
+
         <!-- Хедер -->
-        <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
-            <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">👤 Мой профиль</h1>
+        <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+            <h1 class="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900">Мой профиль</h1>
             <p class="text-gray-600 mt-1 text-xs sm:text-sm lg:text-base">Информация о вашем аккаунте</p>
         </div>
 
         <!-- Информация о пользователе -->
-        <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Имя пользователя</label>
                     <p class="text-base sm:text-lg text-gray-900">{{ current_user.username }}</p>
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Роль</label>
                     {% if current_user.is_admin %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800">
-                        👑 Администратор
+                    <span class="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                        Администратор
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-gray-100 text-gray-800">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium bg-gray-50 text-gray-700 border border-gray-200">
                         Пользователь
                     </span>
                     {% endif %}
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Статус</label>
                     {% if current_user.is_active %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-green-100 text-green-800">
-                        ✅ Активен
+                    <span class="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium bg-green-50 text-green-700 border border-green-200">
+                        Активен
                     </span>
                     {% else %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold bg-red-100 text-red-800">
-                        ⏸️ Неактивен
+                    <span class="inline-flex items-center px-3 py-1.5 rounded text-sm font-medium bg-red-50 text-red-700 border border-red-200">
+                        Неактивен
                     </span>
                     {% endif %}
                 </div>
@@ -47,16 +47,16 @@
         </div>
 
         <!-- Действия -->
-        <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6">
-            <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-3 sm:mb-4">Действия</h2>
+        <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Действия</h2>
             <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 {% if current_user.is_admin %}
-                <a href="/auth/admin" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-center text-sm sm:text-base font-medium shadow-md">
-                    👑 Админ-панель
+                <a href="/auth/admin" class="px-6 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition text-center text-sm font-medium">
+                    Админ-панель
                 </a>
                 {% endif %}
-                <button onclick="logout()" class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm sm:text-base font-medium shadow-md">
-                    🚪 Выйти
+                <button onclick="logout()" class="px-6 py-2.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition text-sm font-medium">
+                    Выйти
                 </button>
             </div>
         </div>

@@ -1,66 +1,167 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-md mx-auto mt-4 sm:mt-10 p-4 sm:p-6 bg-white rounded-lg shadow-md">
-    <h1 class="text-xl sm:text-2xl font-bold text-gray-800 mb-4 sm:mb-6 text-center">🔑 Аутентификация</h1>
+<!--
+    ========================================
+    Modern Login Page - Google-Inspired Design
+    Clean, minimal, professional
+    ========================================
+-->
+<div class="min-h-screen flex items-center justify-center px-4 py-12 bg-white">
 
-    <!-- Ошибки -->
-    <div id="errorAlert" class="hidden mb-4 bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-        <div class="flex">
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-red-800">Ошибка</h3>
-                <div class="mt-2 text-sm text-red-700">
-                    <ul class="list-disc list-inside space-y-1" id="errorList"></ul>
+    <div class="w-full max-w-md">
+        <!-- Brand Header - Clean and minimal -->
+        <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-primary-600 rounded-lg mb-6">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <h1 class="text-2xl font-normal text-gray-900 mb-2">Sign in</h1>
+            <p class="text-sm text-gray-600">to continue to Learning Hub</p>
+        </div>
+
+        <!-- Login Form Card - Clean white card with subtle border -->
+        <div class="bg-white rounded-lg border border-gray-300 p-8 shadow-sm">
+            <!-- Success Alert - Google Material Design style -->
+            <div id="successAlert" class="hidden mb-6 p-4 bg-green-50 border border-green-200 rounded text-sm">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-green-600 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-green-800 font-medium" id="successMsg"></p>
+                    </div>
+                    <button onclick="closeSuccess()" class="text-green-600 hover:text-green-800 ml-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <div class="ml-auto pl-3">
-                <button onclick="closeError()" class="text-red-400 hover:text-red-600">✖</button>
+
+            <!-- Error Alert - Google Material Design style -->
+            <div id="errorAlert" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded text-sm">
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div class="flex-1">
+                        <ul class="text-red-800 space-y-1" id="errorList"></ul>
+                    </div>
+                    <button onclick="closeError()" class="text-red-600 hover:text-red-800 ml-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
             </div>
+
+            <!-- Login Form - Clean, Google-inspired design -->
+            <form id="loginForm" class="space-y-6">
+                <!-- Username Field - Simple, clean input -->
+                <div>
+                    <label for="loginUsername" class="block text-sm font-medium text-gray-700 mb-2">
+                        Username
+                    </label>
+                    <input
+                        type="text"
+                        id="loginUsername"
+                        name="username"
+                        required
+                        class="w-full px-4 py-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all text-base"
+                        placeholder="Enter your username"
+                        autocomplete="username">
+                </div>
+
+                <!-- Password Field - Simple, clean input with toggle -->
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                        Password
+                    </label>
+                    <div class="relative">
+                        <input
+                            type="password"
+                            id="loginPassword"
+                            name="password"
+                            required
+                            class="w-full px-4 py-3 pr-12 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-primary-600 focus:border-transparent transition-all text-base"
+                            placeholder="Enter your password"
+                            autocomplete="current-password">
+                        <button
+                            type="button"
+                            onclick="togglePassword()"
+                            class="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-gray-700">
+                            <svg id="eyeIcon" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Submit Button - Google Material Design style -->
+                <button
+                    type="submit"
+                    class="w-full bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded font-medium text-sm transition-colors duration-200 min-h-[48px] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2">
+                    <span id="buttonText">Sign in</span>
+                    <svg id="buttonSpinner" class="hidden animate-spin h-5 w-5 ml-3" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </form>
+        </div>
+
+        <!-- Footer - Minimal and clean -->
+        <div class="text-center mt-8">
+            <p class="text-xs text-gray-500">
+                © 2025 Learning Hub. Corporate Learning Platform.
+            </p>
         </div>
     </div>
-
-    <!-- Успех -->
-    <div id="successAlert" class="hidden mb-4 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
-        <div class="flex">
-            <div class="ml-3">
-                <h3 class="text-sm font-medium text-green-800">Успех</h3>
-                <div class="mt-2 text-sm text-green-700" id="successMsg"></div>
-            </div>
-            <div class="ml-auto pl-3">
-                <button onclick="closeSuccess()" class="text-green-400 hover:text-green-600">✖</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Форма входа -->
-    <form id="loginForm" class="space-y-4">
-        <div>
-            <label for="loginUsername" class="block text-sm font-medium text-gray-700">Логин</label>
-            <input type="text" id="loginUsername" name="username" required
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
-                placeholder="Введите логин">
-        </div>
-        <div>
-            <label for="loginPassword" class="block text-sm font-medium text-gray-700">Пароль</label>
-            <input type="password" id="loginPassword" name="password" required
-                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-base"
-                placeholder="Введите пароль">
-        </div>
-        <button type="submit" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-base min-h-[44px]">
-            Войти
-        </button>
-    </form>
 </div>
 
-<script>
-const loginForm = document.getElementById("loginForm");
+<style>
+    /* Clean, minimal styles - Google-inspired */
 
+    /* Disabled button state */
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* Smooth input transitions */
+    input:focus {
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+</style>
+
+<script>
+// DOM Elements
+const loginForm = document.getElementById("loginForm");
 const errorAlert = document.getElementById("errorAlert");
 const errorList = document.getElementById("errorList");
 const successAlert = document.getElementById("successAlert");
 const successMsg = document.getElementById("successMsg");
+const buttonText = document.getElementById("buttonText");
+const buttonSpinner = document.getElementById("buttonSpinner");
 
-// Функции для алертов
+// Toggle password visibility
+function togglePassword() {
+    const passwordInput = document.getElementById('loginPassword');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />';
+    } else {
+        passwordInput.type = 'password';
+        eyeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />';
+    }
+}
+
+// Alert Functions
 const showError = (msg) => {
     errorList.innerHTML = "";
     if (Array.isArray(msg)) {
@@ -88,18 +189,21 @@ const showSuccess = (msg) => {
 
 const closeSuccess = () => successAlert.classList.add("hidden");
 
-// Блокировка кнопки при отправке
+// Form loading state
 function setFormLoading(form, loading) {
     const btn = form.querySelector('button[type="submit"]');
     btn.disabled = loading;
+
     if (loading) {
-        btn.textContent = "Загрузка...";
+        buttonText.textContent = "Signing in...";
+        buttonSpinner.classList.remove("hidden");
     } else {
-        btn.textContent = "Войти";
+        buttonText.textContent = "Sign in";
+        buttonSpinner.classList.add("hidden");
     }
 }
 
-// Вход
+// Login Form Submit
 loginForm.addEventListener("submit", async e => {
     e.preventDefault();
     closeError();
@@ -117,9 +221,9 @@ loginForm.addEventListener("submit", async e => {
         const data = await resp.json();
 
         if (resp.ok) {
-            showSuccess(data.message || "Вход выполнен успешно!");
+            showSuccess(data.message || "Login successful! Redirecting...");
 
-            // Редирект в зависимости от роли
+            // Redirect based on role with smooth transition
             setTimeout(() => {
                 if (data.is_admin) {
                     window.location.href = "/auth/admin";
@@ -128,16 +232,23 @@ loginForm.addEventListener("submit", async e => {
                 }
             }, 1000);
         } else {
-            showError(data.detail || "Ошибка входа");
+            showError(data.detail || "Login failed. Please check your credentials.");
         }
     } catch (err) {
-        showError("Ошибка соединения с сервером");
+        showError("Unable to connect to server. Please try again.");
     } finally {
         setFormLoading(loginForm, false);
     }
 });
 
-// Автофокус на первое поле
+// Auto-focus on first input
 document.getElementById("loginUsername").focus();
+
+// Add enter key handler for smooth UX
+document.getElementById("loginUsername").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+        document.getElementById("loginPassword").focus();
+    }
+});
 </script>
 {% endblock %}

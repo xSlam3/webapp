@@ -1,42 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
 
-        <!-- Контент объекта -->
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <!-- Контент объекта -->
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div class="p-4 sm:p-6 lg:p-8">
+            <h1 class="text-2xl sm:text-3xl font-semibold text-gray-900 mb-4">{{ object.name }}</h1>
+
+            <!-- Photo under title with zoom capability -->
             {% if object.photo %}
-            <div class="w-full">
-                <img src="/static/{{ object.photo }}"
+            <div class="w-full cursor-pointer mb-6" onclick="openImageModal()">
+                <img id="objectPhoto"
+                     src="/static/{{ object.photo }}"
                      alt="{{ object.name }}"
-                     class="w-full h-48 sm:h-64 md:h-80 lg:h-96 object-cover">
+                     class="w-full h-48 sm:h-64 md:h-80 lg:h-96 object-cover rounded border border-gray-200 hover:opacity-95 transition">
             </div>
             {% endif %}
 
-            <div class="p-4 sm:p-6 lg:p-8">
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">{{ object.name }}</h1>
-
-                {% if object.description %}
-                <div class="prose prose-sm sm:prose lg:prose-lg max-w-none">
-                    <div class="text-gray-700 text-base sm:text-lg leading-relaxed material-content">
-                        {{ object.description|safe }}
-                    </div>
+            {% if object.description %}
+            <div class="prose prose-sm sm:prose lg:prose-lg max-w-none">
+                <div class="text-gray-700 text-base sm:text-lg leading-relaxed object-content">
+                    {{ object.description|safe }}
                 </div>
-                {% else %}
-                <p class="text-gray-500 italic">Описание отсутствует</p>
-                {% endif %}
             </div>
-
-            <!-- Действия -->
-            <div class="p-4 sm:p-6 border-t border-gray-200">
-                <a href="/objects/scanner" class="text-indigo-600 hover:text-indigo-800 font-medium text-sm sm:text-base">
-                    ← Вернуться к сканеру
-                </a>
-            </div>
-
+            {% else %}
+            <p class="text-gray-500 italic">Описание отсутствует</p>
+            {% endif %}
         </div>
+    </div>
 
+    <!-- Navigation at bottom -->
+    <div class="mt-6">
+        <!-- Back button matching material_detail.html style -->
+        <a href="/objects/scanner" class="w-full bg-white text-black border border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-100 hover:border-gray-400 transition-colors duration-200 inline-flex items-center justify-center gap-2 font-medium">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Назад к сканеру</span>
+        </a>
     </div>
 </div>
+
+<!-- Модальное окно для просмотра фото -->
+{% if object.photo %}
+<div id="imageModal" class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4" onclick="closeImageModal()">
+    <div class="relative max-w-7xl w-full h-full flex items-center justify-center">
+        <!-- Кнопка закрытия -->
+        <button onclick="closeImageModal()" class="absolute top-4 right-4 text-white hover:text-gray-300 transition z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        </button>
+
+        <!-- Изображение -->
+        <img src="/static/{{ object.photo }}"
+             alt="{{ object.name }}"
+             class="max-w-full max-h-full object-contain"
+             onclick="event.stopPropagation()">
+    </div>
+</div>
+{% endif %}
+
+<script>
+    // Модальное окно для фото
+    function openImageModal() {
+        const imageModal = document.getElementById('imageModal');
+        if (imageModal) {
+            imageModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeImageModal() {
+        const imageModal = document.getElementById('imageModal');
+        if (imageModal) {
+            imageModal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // Закрытие модального окна при нажатии Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeImageModal();
+        }
+    });
+</script>
 {% endblock %}

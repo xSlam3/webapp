@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session
 app = FastAPI(title="Knowledge Base")
 templates = Jinja2Templates(directory="app/templates")
 
-
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """

@@ -1,27 +1,18 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen py-6 sm:py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+<div class="min-h-screen py-4 sm:py-6">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
 
         <!-- Хедер -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8 mb-6">
-            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 mb-4">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
                 <div>
-                    <div class="flex items-center space-x-3 mb-2">
-                        <div class="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md">
-                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h1 class="text-2xl sm:text-3xl font-bold text-neutral-900">Панель администратора</h1>
-                            <p class="text-neutral-500 text-sm mt-0.5">Управление пользователями системы</p>
-                        </div>
-                    </div>
+                    <h1 class="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900">Панель администратора</h1>
+                    <p class="text-gray-600 text-xs sm:text-sm mt-1">Управление системой и пользователями</p>
                 </div>
-                <button onclick="loadUsers()" class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg hover:from-primary-600 hover:to-primary-700 transition-all font-medium shadow-sm hover:shadow-md">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onclick="loadUsers()" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition font-medium">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Обновить
@@ -29,18 +20,76 @@
             </div>
         </div>
 
+        <!-- AR/QR Management Quick Links -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
+            <!-- AR/QR Управление -->
+            <a href="/objects/manage" class="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:bg-gray-50 transition group">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-blue-50 rounded flex items-center justify-center group-hover:bg-blue-100 transition">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-sm font-medium text-gray-900 mb-0.5">AR/QR Управление</h3>
+                        <p class="text-xs text-gray-500">Управление AR/QR объектами</p>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 group-hover:text-primary-600 transition flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </a>
+
+            <!-- AR/QR Сканер -->
+            <a href="/objects/scanner" class="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:bg-gray-50 transition group">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-green-50 rounded flex items-center justify-center group-hover:bg-green-100 transition">
+                        <svg class="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-sm font-medium text-gray-900 mb-0.5">AR/QR Сканер</h3>
+                        <p class="text-xs text-gray-500">Сканирование QR-кодов</p>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 group-hover:text-primary-600 transition flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </a>
+
+            <!-- Создание тегов/QR -->
+            <a href="/objects/manage#create" class="bg-white border border-gray-200 rounded-lg p-4 hover:border-primary-300 hover:bg-gray-50 transition group">
+                <div class="flex items-start gap-3">
+                    <div class="w-10 h-10 bg-purple-50 rounded flex items-center justify-center group-hover:bg-purple-100 transition">
+                        <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-sm font-medium text-gray-900 mb-0.5">Создание тегов/QR</h3>
+                        <p class="text-xs text-gray-500">Создать новые теги и коды</p>
+                    </div>
+                    <svg class="w-4 h-4 text-gray-400 group-hover:text-primary-600 transition flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </a>
+        </div>
+
         <!-- Алерты -->
-        <div id="alertContainer" class="mb-6"></div>
+        <div id="alertContainer" class="mb-4"></div>
 
         <!-- Форма создания пользователя -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 mb-4">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div class="flex-1">
-                    <h2 class="text-lg font-semibold text-neutral-900">Создать нового пользователя</h2>
-                    <p class="text-sm text-neutral-500 mt-1">Только администраторы могут создавать новых пользователей</p>
+                    <h2 class="text-base sm:text-lg font-semibold text-gray-900">Создать нового пользователя</h2>
+                    <p class="text-xs sm:text-sm text-gray-600 mt-1">Только администраторы могут создавать новых пользователей</p>
                 </div>
-                <button id="toggleCreateForm" onclick="toggleCreateUserForm()" class="inline-flex items-center justify-center px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all font-medium shadow-sm hover:shadow-md whitespace-nowrap">
-                    <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button id="toggleCreateForm" onclick="toggleCreateUserForm()" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition font-medium whitespace-nowrap">
+                    <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
                     <span>Создать пользователя</span>
@@ -53,7 +102,7 @@
                     <div>
                         <label for="newUsername" class="block text-sm font-medium text-gray-700 mb-2">Имя пользователя *</label>
                         <input type="text" id="newUsername" name="username" required minlength="3" maxlength="50"
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            class="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-primary-600 focus:border-transparent text-sm sm:text-base"
                             placeholder="Минимум 3 символа">
                         <p class="mt-1 text-xs text-gray-500">Логин будет преобразован в нижний регистр</p>
                     </div>
@@ -61,22 +110,22 @@
                     <div>
                         <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-2">Пароль *</label>
                         <input type="password" id="newPassword" name="password" required minlength="6" maxlength="100"
-                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            class="w-full px-3 sm:px-4 py-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-primary-600 focus:border-transparent text-sm sm:text-base"
                             placeholder="Минимум 6 символов">
                     </div>
                 </div>
 
                 <div class="flex items-center">
                     <input type="checkbox" id="newIsAdmin" name="is_admin" value="true"
-                        class="w-4 h-4 text-green-600 rounded focus:ring-green-500">
+                        class="w-4 h-4 text-primary-600 rounded focus:ring-primary-600">
                     <label for="newIsAdmin" class="ml-2 text-sm text-gray-700">Права администратора</label>
                 </div>
 
-                <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" onclick="toggleCreateUserForm()" class="px-6 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
+                <div class="flex justify-end gap-2 sm:gap-3 pt-2">
+                    <button type="button" onclick="toggleCreateUserForm()" class="px-4 sm:px-6 py-2.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition font-medium">
                         Отмена
                     </button>
-                    <button type="submit" class="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium shadow-md">
+                    <button type="submit" class="px-4 sm:px-6 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition font-medium">
                         Создать
                     </button>
                 </div>
@@ -84,57 +133,57 @@
         </div>
 
         <!-- Статистика -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 sm:p-5">
                 <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <p class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1">Всего пользователей</p>
-                        <p class="text-3xl font-bold text-neutral-900" id="totalUsers">0</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Всего</p>
+                        <p class="text-2xl sm:text-3xl font-semibold text-gray-900" id="totalUsers">0</p>
                     </div>
-                    <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                         </svg>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 sm:p-5">
                 <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <p class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1">Активных</p>
-                        <p class="text-3xl font-bold text-neutral-900" id="activeUsers">0</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Активных</p>
+                        <p class="text-2xl sm:text-3xl font-semibold text-gray-900" id="activeUsers">0</p>
                     </div>
-                    <div class="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center">
-                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 bg-green-50 rounded flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 sm:p-5">
                 <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <p class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1">Неактивных</p>
-                        <p class="text-3xl font-bold text-neutral-900" id="inactiveUsers">0</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Неактивных</p>
+                        <p class="text-2xl sm:text-3xl font-semibold text-gray-900" id="inactiveUsers">0</p>
                     </div>
-                    <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center">
-                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 bg-red-50 rounded flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 sm:p-5">
                 <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <p class="text-xs font-medium text-neutral-500 uppercase tracking-wider mb-1">Администраторов</p>
-                        <p class="text-3xl font-bold text-neutral-900" id="adminUsers">0</p>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Админов</p>
+                        <p class="text-2xl sm:text-3xl font-semibold text-gray-900" id="adminUsers">0</p>
                     </div>
-                    <div class="w-12 h-12 bg-purple-50 rounded-xl flex items-center justify-center">
-                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <div class="w-10 h-10 sm:w-12 sm:h-12 bg-purple-50 rounded flex items-center justify-center flex-shrink-0">
+                        <svg class="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
                         </svg>
                     </div>
@@ -143,24 +192,24 @@
         </div>
 
         <!-- Таблица пользователей -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-5 border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-neutral-900">Список пользователей</h2>
-                <p class="text-sm text-neutral-500 mt-1">Просмотр и управление учетными записями</p>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div class="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-200">
+                <h2 class="text-base sm:text-lg font-semibold text-gray-900">Список пользователей</h2>
+                <p class="text-xs sm:text-sm text-gray-600 mt-1">Просмотр и управление учетными записями</p>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-neutral-50">
+                    <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Пользователь</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Роль</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Статус</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-neutral-600 uppercase tracking-wider">Дата создания</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold text-neutral-600 uppercase tracking-wider">Действия</th>
+                            <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">Пользователь</th>
+                            <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">Роль</th>
+                            <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">Статус</th>
+                            <th class="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wide">Дата создания</th>
+                            <th class="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wide">Действия</th>
                         </tr>
                     </thead>
-                    <tbody id="usersTable" class="bg-white divide-y divide-gray-100">
+                    <tbody id="usersTable" class="bg-white divide-y divide-gray-200">
                         <!-- Динамический контент -->
                     </tbody>
                 </table>
@@ -171,33 +220,33 @@
 </div>
 
 <!-- Модальное окно для редактирования пользователя -->
-<div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+<div id="editModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-4 border border-gray-200 w-full max-w-md rounded-lg bg-white">
         <div class="mt-3">
-            <h3 class="text-lg font-medium text-gray-900 mb-4" id="modalTitle">Редактировать пользователя</h3>
-            
+            <h3 class="text-lg font-semibold text-gray-900 mb-4" id="modalTitle">Редактировать пользователя</h3>
+
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Имя пользователя</label>
-                    <input type="text" id="editUsername" disabled class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100">
+                    <input type="text" id="editUsername" disabled class="w-full px-3 py-2.5 border border-gray-300 rounded bg-gray-50 text-gray-500">
                 </div>
-                
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Новый пароль (оставьте пустым, чтобы не менять)</label>
-                    <input type="password" id="editPassword" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <input type="password" id="editPassword" class="w-full px-3 py-2.5 border border-gray-300 rounded focus:ring-2 focus:ring-primary-600 focus:border-transparent">
                 </div>
-                
+
                 <div class="flex items-center">
-                    <input type="checkbox" id="editIsAdmin" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                    <input type="checkbox" id="editIsAdmin" class="w-4 h-4 text-primary-600 rounded focus:ring-primary-600">
                     <label for="editIsAdmin" class="ml-2 text-sm text-gray-700">Права администратора</label>
                 </div>
             </div>
-            
-            <div class="flex justify-end space-x-3 mt-6">
-                <button onclick="closeEditModal()" class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition font-medium">
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closeEditModal()" class="px-6 py-2.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition font-medium">
                     Отмена
                 </button>
-                <button onclick="saveUser()" class="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-md">
+                <button onclick="saveUser()" class="px-6 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition font-medium">
                     Сохранить
                 </button>
             </div>

@@ -1,31 +1,34 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
+<div class="min-h-screen bg-white py-4 sm:py-6 lg:py-8">
     <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
-        
+
         <!-- Хедер -->
-        <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
             <div>
-                <h1 class="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800">База знаний</h1>
+                <h1 class="text-xl sm:text-2xl lg:text-3xl font-semibold text-gray-900">База знаний</h1>
             </div>
             {% if current_user and current_user.is_admin %}
             <div class="mt-3 sm:mt-4">
-                <a href="/knowledge_base/create" class="inline-block px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-center text-sm sm:text-base font-medium shadow-md">
-                    ➕ Создать материал
+                <a href="/knowledge_base/create" class="inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition text-center text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Создать материал
                 </a>
             </div>
             {% endif %}
         </div>
 
         <!-- Поиск -->
-        <div class="bg-white rounded-lg shadow-md p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
             <div class="relative">
-                <input 
-                    type="text" 
+                <input
+                    type="text"
                     id="searchInput"
-                    placeholder="🔍 Поиск материалов..."
-                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
+                    placeholder="Поиск материалов..."
+                    class="w-full px-3 sm:px-4 py-2.5 sm:py-3 pl-10 sm:pl-12 border border-gray-300 rounded focus:ring-2 focus:ring-primary-600 focus:border-transparent text-sm sm:text-base"
                 >
                 <svg class="absolute left-3 sm:left-4 top-2.5 sm:top-3.5 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -34,57 +37,56 @@
         </div>
 
         <!-- Список материалов -->
-        <div id="materialsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-            {% if materials %}
-                {% for material in materials %}
-                <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition duration-200 flex flex-col">
-                    <!-- Контент -->
+        <div id="articlesContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+            {% if articles %}
+                {% for article in articles %}
+                <div class="bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition duration-200 flex flex-col">
                     <div class="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col">
-                        <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-2 line-clamp-2">{{ material.title }}</h3>
-                        
-                        {% if material.text %}
-                        <div class="text-gray-600 text-sm sm:text-base mb-3 sm:mb-4 line-clamp-3 flex-1 material-text-preview">
-                            {{ material.text|striptags|truncate(150) }}
+                        <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2">{{ article.title }}</h3>
+
+                        {% if article.text %}
+                        <div class="text-gray-600 text-sm sm:text-base mb-3 sm:mb-4 line-clamp-3 flex-1 articles-text-preview">
+                            {{ article.text|striptags|truncate(150) }}
                         </div>
                         {% endif %}
-                        
-                        <!-- Метаинформация и индикаторы -->
+
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
                             <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-                                <span>ID: {{ material.id }}</span>
-                                {% if material.created_by %}
+                                <span>ID: {{ article.id }}</span>
+                                {% if article.created_by %}
                                 <span class="hidden sm:inline">•</span>
-                                <span class="hidden sm:inline">Автор: {{ material.created_by }}</span>
+                                <span class="hidden sm:inline">{{ article.created_by }}</span>
                                 {% endif %}
                             </div>
-                            
-                            <!-- Индикаторы -->
                             <div class="flex flex-wrap gap-1.5 sm:gap-2">
-                                {% if material.photo %}
-                                <span class="px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full whitespace-nowrap">📷 Фото</span>
+                                {% if article.photo %}
+                                <span class="px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 text-xs rounded whitespace-nowrap border border-blue-200">Фото</span>
                                 {% endif %}
-                                {% if material.video %}
-                                <span class="px-2 py-0.5 sm:py-1 bg-red-100 text-red-800 text-xs rounded-full whitespace-nowrap">🎥 Видео</span>
+                                {% if article.video %}
+                                <span class="px-2 py-0.5 sm:py-1 bg-purple-50 text-purple-700 text-xs rounded whitespace-nowrap border border-purple-200">Видео</span>
                                 {% endif %}
                             </div>
                         </div>
-                        
-                        <!-- Кнопки действий -->
+
                         <div class="flex flex-col sm:flex-row gap-2 mt-auto">
-                            <a href="/knowledge_base/{{ material.id }}" 
-                               class="flex-1 text-center px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm sm:text-base font-medium shadow-md">
+                            <a href="/knowledge_base/{{ article.id }}"
+                               class="flex-1 text-center px-4 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition text-sm font-medium">
                                 Подробнее
                             </a>
-                            
+
                             {% if current_user and current_user.is_admin %}
                             <div class="flex gap-2">
-                                <a href="/knowledge_base/{{ material.id }}/edit" 
-                                   class="flex-1 sm:flex-none text-center px-4 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-sm sm:text-base font-medium shadow-md">
-                                    ✏️
+                                <a href="/knowledge_base/{{ article.id }}/edit"
+                                   class="flex-1 sm:flex-none text-center px-3 py-2.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition text-sm font-medium">
+                                    <svg class="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
                                 </a>
-                                <button onclick="deleteMaterial('{{ material.id }}')" 
-                                        class="flex-1 sm:flex-none px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm sm:text-base font-medium shadow-md">
-                                    🗑️
+                                <button onclick="deleteArticle('{{ article.id }}')"
+                                        class="flex-1 sm:flex-none px-3 py-2.5 border border-red-300 text-red-600 rounded hover:bg-red-50 transition text-sm font-medium">
+                                    <svg class="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
                                 </button>
                             </div>
                             {% endif %}
@@ -94,10 +96,13 @@
                 {% endfor %}
             {% else %}
             <div class="col-span-full text-center py-8 sm:py-12">
-                <p class="text-gray-500 text-base sm:text-lg">📭 Материалов пока нет</p>
+                <p class="text-gray-500 text-base sm:text-lg">Материалов пока нет</p>
                 {% if current_user and current_user.is_admin %}
-                <a href="/knowledge_base/create" class="mt-4 inline-block px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm sm:text-base font-medium shadow-md">
-                    ➕ Создать первый материал
+                <a href="/knowledge_base/create" class="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition text-sm font-medium">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Создать первый материал
                 </a>
                 {% endif %}
             </div>
@@ -107,81 +112,83 @@
 </div>
 
 <script>
-// Поиск материалов
 let searchTimeout;
 const searchInput = document.getElementById('searchInput');
-const materialsContainer = document.getElementById('materialsContainer');
+const articlesContainer = document.getElementById('articlesContainer');
 
 searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        searchMaterials(e.target.value);
+        searchArticles(e.target.value);
     }, 300);
 });
 
-async function searchMaterials(query) {
+async function searchArticles(query) {
     try {
         const response = await fetch(`/knowledge_base/api/search?q=${encodeURIComponent(query)}`);
         const data = await response.json();
-        renderMaterials(data.materials);
+        renderArticles(data.articles);
     } catch (error) {
         console.error('Ошибка поиска:', error);
     }
 }
 
-function renderMaterials(materials) {
-    if (materials.length === 0) {
-        materialsContainer.innerHTML = `
+function renderArticles(articles) {
+    if (!articles || articles.length === 0) {
+        articlesContainer.innerHTML = `
             <div class="col-span-full text-center py-12">
-                <p class="text-gray-500 text-base sm:text-lg">🔍 Ничего не найдено</p>
+                <p class="text-gray-500 text-base sm:text-lg">Ничего не найдено</p>
             </div>
         `;
         return;
     }
-    
+
     const isAdmin = {% if current_user and current_user.is_admin %}true{% else %}false{% endif %};
-    
-    materialsContainer.innerHTML = materials.map(material => `
-        <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition duration-200 flex flex-col">
+
+    articlesContainer.innerHTML = articles.map(article => `
+        <div class="bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition duration-200 flex flex-col">
             <div class="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col">
-                <h3 class="text-lg sm:text-xl font-bold text-gray-800 mb-2 line-clamp-2">${material.title}</h3>
-                
-                ${material.text ? `
-                    <div class="text-gray-600 text-sm sm:text-base mb-3 sm:mb-4 line-clamp-3 flex-1 material-text-preview">
-                        ${material.text.replace(/<[^>]*>/g, '').substring(0, 150)}${material.text.length > 150 ? '...' : ''}
+                <h3 class="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2">${article.title}</h3>
+
+                ${article.text ? `
+                    <div class="text-gray-600 text-sm sm:text-base mb-3 sm:mb-4 line-clamp-3 flex-1 articles-text-preview">
+                        ${article.text.replace(/<[^>]*>/g, '').substring(0, 150)}${article.text.length > 150 ? '...' : ''}
                     </div>
                 ` : ''}
-                
+
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
                     <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-500">
-                        <span>ID: ${material.id}</span>
-                        ${material.created_by ? `
+                        <span>ID: ${article.id}</span>
+                        ${article.created_by ? `
                             <span class="hidden sm:inline">•</span>
-                            <span class="hidden sm:inline">Автор: ${material.created_by}</span>
+                            <span class="hidden sm:inline">${article.created_by}</span>
                         ` : ''}
                     </div>
-                    
                     <div class="flex flex-wrap gap-1.5 sm:gap-2">
-                        ${material.photo ? '<span class="px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full whitespace-nowrap">📷 Фото</span>' : ''}
-                        ${material.video ? '<span class="px-2 py-0.5 sm:py-1 bg-red-100 text-red-800 text-xs rounded-full whitespace-nowrap">🎥 Видео</span>' : ''}
+                        ${article.photo ? '<span class="px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 text-xs rounded whitespace-nowrap border border-blue-200">Фото</span>' : ''}
+                        ${article.video ? '<span class="px-2 py-0.5 sm:py-1 bg-purple-50 text-purple-700 text-xs rounded whitespace-nowrap border border-purple-200">Видео</span>' : ''}
                     </div>
                 </div>
-                
+
                 <div class="flex flex-col sm:flex-row gap-2 mt-auto">
-                    <a href="/knowledge_base/${material.id}" 
-                       class="flex-1 text-center px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm sm:text-base font-medium shadow-md">
+                    <a href="/knowledge_base/${article.id}"
+                       class="flex-1 text-center px-4 py-2.5 bg-primary-600 text-white rounded hover:bg-primary-700 transition text-sm font-medium">
                         Подробнее
                     </a>
-                    
+
                     ${isAdmin ? `
                         <div class="flex gap-2">
-                            <a href="/knowledge_base/${material.id}/edit" 
-                               class="flex-1 sm:flex-none text-center px-4 py-3 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-sm sm:text-base font-medium shadow-md">
-                                ✏️
+                            <a href="/knowledge_base/${article.id}/edit"
+                               class="flex-1 sm:flex-none text-center px-3 py-2.5 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition text-sm font-medium">
+                                <svg class="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
                             </a>
-                            <button onclick="deleteMaterial(${material.id})" 
-                                    class="flex-1 sm:flex-none px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm sm:text-base font-medium shadow-md">
-                                🗑️
+                            <button onclick="deleteArticle('${article.id}')"
+                                    class="flex-1 sm:flex-none px-3 py-2.5 border border-red-300 text-red-600 rounded hover:bg-red-50 transition text-sm font-medium">
+                                <svg class="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
                             </button>
                         </div>
                     ` : ''}
@@ -191,11 +198,8 @@ function renderMaterials(materials) {
     `).join('');
 }
 
-// Удаление материала
-async function deleteMaterial(id) {
-    if (!confirm('Вы уверены, что хотите удалить этот материал?')) {
-        return;
-    }
+async function deleteArticle(id) {
+    if (!confirm('Вы уверены, что хотите удалить этот материал?')) return;
     
     try {
         const form = document.createElement('form');
@@ -207,7 +211,6 @@ async function deleteMaterial(id) {
         alert('Ошибка при удалении материала');
     }
 }
-
 </script>
 
 <style>
